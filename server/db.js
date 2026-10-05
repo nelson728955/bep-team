@@ -2,15 +2,18 @@ import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { cloudDatabase } from './cloud-db.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const DATA_DIR = process.env.DATA_DIR || path.join(here, '..', 'data');
 export const DB_PATH = path.join(DATA_DIR, 'shifthub.db');
 
-fs.mkdirSync(DATA_DIR, { recursive: true });
-
-export const db = new DatabaseSync(DB_PATH);
-db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+const cloudUrl = process.env.TURSO_DATABASE_URL;
+if (cloudUrl && !process.env.TURSO_AUTH_TOKEN && !cloudUrl.startsWith('file:')) throw new Error('Set TURSO_AUTH_TOKEN for the cloud database.');
+if (!cloudUrl && process.env.RENDER && process.env.NODE_ENV === 'production') throw new Error('Set TURSO_DATABASE_URL to keep hosted data persistent.');
+if (!cloudUrl) fs.mkdirSync(DATA_DIR, { recursive: true });
+export const db = cloudUrl ? cloudDatabase(cloudUrl, process.env.TURSO_AUTH_TOKEN) : new DatabaseSync(DB_PATH);
+if (!cloudUrl) db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);

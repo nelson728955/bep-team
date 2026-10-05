@@ -25,7 +25,10 @@ if (!db.prepare('SELECT 1 FROM users LIMIT 1').get()) {
 }
 
 syncScheduledPunches();
-setInterval(syncScheduledPunches, 60000).unref();
+setInterval(() => { try { syncScheduledPunches(); } catch (error) { console.error('Scheduled attendance sync failed:', error.message); } }, 60000).unref();
+const appUrl = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL;
+const appOrigin = appUrl ? new URL(appUrl).origin : null;
+if (production && !appOrigin) throw new Error('Set APP_URL to your public website address.');
 const app = express();
 app.disable('x-powered-by');
 if (production) app.set('trust proxy', 1);
@@ -34,7 +37,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   if (production && req.path.startsWith('/api') && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-    if (!process.env.APP_URL || req.headers.origin !== new URL(process.env.APP_URL).origin) return res.status(403).json({ error: 'Untrusted request origin' });
+    if (req.headers.origin !== appOrigin) return res.status(403).json({ error: 'Untrusted request origin' });
   }
   next();
 });

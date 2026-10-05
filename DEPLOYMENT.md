@@ -1,9 +1,17 @@
-# Online hosting
+# Host the working Bep app for free
 
-Create a private GitHub repository containing this folder, excluding data and node_modules. Create a Render Blueprint from render.yaml. This requires a paid service and persistent disk; review charges before creating it.
+GitHub Pages cannot run this app's backend. Use Render Free with a Turso libSQL cloud database. The desktop app continues using its local database.
 
-Set APP_URL to the exact HTTPS service address, ADMIN_EMAIL to your email, and ADMIN_PASSWORD to a unique password of at least 16 characters in Render's secret environment fields. Deploy, sign in, and add positions and employees. Existing local records are not uploaded. Demo databases are blocked in production.
+1. Create accounts at https://dashboard.render.com and https://turso.tech.
+2. In Turso, create a libSQL-compatible database for @libsql/client. Copy its database URL and create an authentication token. Keep the token private.
+3. Push this project to GitHub. Never include data/, .env or database tokens.
+4. In Render choose New > Blueprint, connect GitHub, and select bep-team. Render reads render.yaml. Confirm the plan is Free with no paid disk.
+5. Fill in the private environment fields: TURSO_DATABASE_URL, TURSO_AUTH_TOKEN, ADMIN_EMAIL and ADMIN_PASSWORD (at least 16 characters).
+6. Deploy, open Render's HTTPS address, and sign in with those manager credentials. The new database has no demo employees or restaurant records. Add your positions and team.
+7. Verify saving a schedule and signing back in, then restart the service and verify your records remain.
 
-Confirm sign-in, employee permissions, punches, tips and database persistence after a restart before inviting staff. Configure database-aware off-site backups and test restoration before using real payroll data. Keep one service instance. Update APP_URL when adding a domain. Restaurant timezone is America/Toronto. Payroll remains an estimate.
+Render supplies the website address automatically. For a custom domain set APP_URL to its exact HTTPS address. Keep one service instance. Timezone is America/Toronto. Employees are enabled by default; set EMPLOYEE_ACCESS=false for manager-only access.
 
-Employee access is enabled by default. Employees can sign in to their own tools; manager permissions remain restricted. Set EMPLOYEE_ACCESS=false and restart for manager-only mode.
+Free Render services sleep after 15 minutes of inactivity and can take about a minute to wake up. Automatic scheduled attendance catches up at startup; it does not run during sleep. Turso keeps records outside Render across restarts. Free plans have usage limits. Cloud queries currently run sequentially; check responsiveness before inviting staff.
+
+Existing desktop data is not automatically uploaded. Store database tokens only in Render's private environment settings. Keep backups and test restoration before relying on payroll records. Payroll calculations remain estimates.

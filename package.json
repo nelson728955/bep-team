@@ -13,6 +13,7 @@
     "reset": "node --no-warnings server/reset.js"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "express": "^4.21.2"
   }
 }
