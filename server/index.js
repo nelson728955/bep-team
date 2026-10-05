@@ -1,4 +1,4 @@
-import { syncScheduledPunches } from './scheduled-punches.js';
+import { syncScheduledPunches, deletePunch } from './scheduled-punches.js';
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -443,7 +443,7 @@ app.put('/api/punches/:id', managerOnly, route((req) => {
   return { ok: true };
 }));
 app.delete('/api/punches/:id', managerOnly, route((req) => {
-  db.prepare('DELETE FROM punches WHERE id = ?').run(req.params.id);
+  if (!deletePunch(req.params.id)) notFound('Punch not found');
   return { ok: true };
 }));
 app.post('/api/punches/approve', managerOnly, route((req) => {

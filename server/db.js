@@ -74,6 +74,11 @@ CREATE TABLE IF NOT EXISTS punches (
   note TEXT
 );
 CREATE INDEX IF NOT EXISTS punches_in ON punches(clock_in);
+CREATE TABLE IF NOT EXISTS suppressed_scheduled_punches (
+  shift_id INTEGER NOT NULL REFERENCES shifts(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (shift_id, user_id)
+);
 
 CREATE TABLE IF NOT EXISTS time_off (
   id INTEGER PRIMARY KEY,
