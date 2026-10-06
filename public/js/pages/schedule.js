@@ -47,7 +47,7 @@ export async function render(root, ctx) {
     if (req?.type === 'drop' && req.status === 'open') flag = 'Up for grabs';
     else if (req?.status === 'claimed') flag = `${M ? esc(ctx.userName(req.claimer_id)) + ' wants it' : 'Swap pending approval'}`;
     const tip = `<strong>${fmtTime(s.start)}–${fmtTime(s.end)}</strong> · ${esc(p?.name || 'No position')}<br>${hrs(shiftHours(s))} hrs${s.break_min ? `, ${s.break_min}m break` : ''}${s.notes ? `<br>${esc(s.notes)}` : ''}${!s.published ? '<br><em>Draft, not published</em>' : ''}`;
-    return `<button class="chip ${s.published ? '' : 'draft'} ${mine && !M ? 'mine' : ''}" style="--c:${esc(p?.color || '#888')}" data-shift="${s.id}" data-tip="${esc(tip)}">
+    return `<button class="chip ${s.published ? '' : 'draft'} ${mine && !M ? 'mine' : ''}" ${M ? 'draggable="true"' : ''} style="--c:${esc(p?.color || '#888')}" data-shift="${s.id}" data-tip="${esc(tip)}">
       <div class="t">${fmtTime(s.start)} – ${fmtTime(s.end)}</div>
       <div class="p">${esc(p?.name || '')}</div>
       ${flag ? `<div class="flag">${flag}</div>` : ''}</button>`;
@@ -144,6 +144,52 @@ export async function render(root, ctx) {
   });
 
   if (M) {
+    let draggedShift = null;
+    let copying = false;
+    let ignoreClickUntil = 0;
+    const cells = [...root.querySelectorAll('[data-cell]')];
+    const clearHighlights = () => cells.forEach(cell => cell.style.removeProperty('box-shadow'));
+    const canCopyTo = (cell) => draggedShift && cell &&
+      cell.dataset.user === String(draggedShift.user_id ?? '') && cell.dataset.date !== draggedShift.date;
+    root.querySelector('.sched').addEventListener('click', e => {
+      if (Date.now() < ignoreClickUntil) { e.stopImmediatePropagation(); e.preventDefault(); }
+    }, true);
+    root.querySelectorAll('[data-shift]').forEach(chip => {
+      chip.addEventListener('dragstart', e => {
+        if (copying) { e.preventDefault(); return; }
+        draggedShift = data.shifts.find(s => s.id === Number(chip.dataset.shift));
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData('text/plain', String(draggedShift.id));
+        cells.filter(canCopyTo).forEach(cell => cell.style.boxShadow = 'inset 0 0 0 2px var(--accent, #ffb52b)');
+      });
+      chip.addEventListener('dragend', () => {
+        draggedShift = null;
+        ignoreClickUntil = Date.now() + 250;
+        clearHighlights();
+      });
+    });
+    cells.forEach(cell => {
+      cell.addEventListener('dragover', e => {
+        if (!copying && canCopyTo(cell)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }
+      });
+      cell.addEventListener('drop', async e => {
+        if (copying || !canCopyTo(cell)) return;
+        e.preventDefault();
+        const source = draggedShift;
+        draggedShift = null;
+        copying = true;
+        clearHighlights();
+        try {
+          await api('/shifts', { method: 'POST', body: {
+            user_id: source.user_id, position_id: source.position_id, date: cell.dataset.date,
+            start: source.start, end: source.end, break_min: source.break_min, notes: source.notes,
+          } });
+          toast('Shift copied as a draft');
+          await render(root, ctx);
+        } catch (error) { toast(error.message, 'error'); }
+        finally { copying = false; }
+      });
+    });
     root.querySelector('[data-clear]').addEventListener('click', async () => {
       if (!(await confirmDialog(`Clear all ${data.shifts.length} shifts for ${fmtRange(days[0], days[6])}? This removes draft, published, and open shifts across ALL departments for this week. This cannot be undone. Time Clock entries (including scheduled estimates), tips, and payroll records will remain; review those separately if needed.`, { confirmLabel: 'Clear this week', danger: true }))) return;
       const button = root.querySelector('[data-clear]');
