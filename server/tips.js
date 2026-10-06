@@ -22,10 +22,11 @@ export function computeTipSplit(date, amount, method, positionIds, period = 'all
   const [from, to] = period === 'morning' ? [-Infinity, split] : period === 'night' ? [split, Infinity] : [-Infinity, Infinity];
   const rows = db
     .prepare(
-      `SELECT p.*, u.name, u.position_id, pos.name AS position_name, pos.tip_points
+      `SELECT p.*, u.name, COALESCE(s.position_id, u.position_id) AS position_id, pos.name AS position_name, pos.tip_points
          FROM punches p
          JOIN users u ON u.id = p.user_id
-         LEFT JOIN positions pos ON pos.id = u.position_id
+         LEFT JOIN shifts s ON s.id = p.shift_id
+         LEFT JOIN positions pos ON pos.id = COALESCE(s.position_id, u.position_id)
         WHERE p.clock_in >= ? AND p.clock_in < ?`
     )
     .all(dayStart, msAt(addDays(date, 1), '00:00'));

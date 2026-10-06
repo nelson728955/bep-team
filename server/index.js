@@ -606,12 +606,14 @@ function tipInput(b) {
 }
 app.post('/api/tips/preview', managerOnly, route((req) => {
   const t = tipInput(req.body);
+  syncScheduledPunches();
   return computeTipSplit(t.date, t.amount, t.method, t.positionIds, t.period);
 }));
 // Accepts { pools: [...] } so morning and night tips are saved together (all or nothing).
 app.post('/api/tips', managerOnly, route((req) => {
   const inputs = (Array.isArray(req.body.pools) ? req.body.pools : [req.body]).map(tipInput);
   if (!inputs.length) bad('Enter a tip amount');
+  syncScheduledPunches();
   // A whole-day pool overlaps both halves, so it blocks (and is blocked by) either one.
   const exists = db.prepare("SELECT 1 FROM tip_pools WHERE date = ? AND (period = ? OR period = 'all' OR ? = 'all')");
   const plans = inputs.map((t) => {
