@@ -95,6 +95,24 @@ function userModal(ctx, u, done) {
         ${isNew ? '' : `<label class="field"><span>Status</span><select name="active">${options([['1', 'Active'], ['', 'Inactive (cannot sign in)']], u.active ? '1' : '')}</select></label>`}
       </div>`,
     submitLabel: isNew ? 'Add employee' : 'Save',
+    onOpen: (form) => {
+      if (!isNew) return;
+      const position = form.elements.position_id;
+      const rate = form.elements.hourly_rate;
+      let previousRate = rate.value;
+      let wasCook = false;
+      position.addEventListener('change', () => {
+        const selected = ctx.positions.find((p) => String(p.id) === position.value);
+        const isCook = /\bcook\b/i.test(selected?.name || '');
+        if (isCook) {
+          if (!wasCook) previousRate = rate.value;
+          rate.value = '20.00';
+        } else if (wasCook) {
+          rate.value = previousRate;
+        }
+        wasCook = isCook;
+      });
+    },
     onSubmit: async (v) => {
       if (!isNew) v.active = v.active === '1';
       for (const k of ['td1_federal', 'td1_quebec']) if (v[k] === '') v[k] = null; // blank = basic personal amount
