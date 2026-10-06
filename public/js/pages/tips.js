@@ -50,7 +50,7 @@ export async function render(root, ctx) {
           </div>
           <div class="card-body">
             <div class="row">
-              <label class="field"><span>Date worked</span><input type="date" name="date" value="${addDays(today(), -1)}" max="${today()}" required></label>
+              <label class="field"><span>Date worked</span><input type="date" name="date" value="${today()}" max="${today()}" required></label>
               ${split ? `
               <label class="field"><span>Morning tips ($)</span><input type="number" name="morning" min="0" step="0.01" placeholder="0.00"><span class="hint">Opening until ${fmtTime(cutoff)}</span></label>
               <label class="field"><span>Night tips ($)</span><input type="number" name="night" min="0" step="0.01" placeholder="0.00"><span class="hint">${fmtTime(cutoff)} until close</span></label>`
