@@ -11,10 +11,14 @@ export function cloudDatabase(url, authToken) {
   worker.unref();
   worker.on('error', error => { stopped = true; console.error('Database worker failed:', error.message); });
   let stopped = false;
+  // Calls are synchronous and serialized, so one bounded response buffer can
+  // serve every request instead of allocating 16 MB for every SQL statement.
+  const shared = new SharedArrayBuffer(16 * 1024 * 1024);
+  const state = new Int32Array(shared, 0, 2);
   function call(operation, sql, args = []) {
     if (stopped) throw new Error('Cloud database connection stopped. Restart the service.');
-    const shared = new SharedArrayBuffer(16 * 1024 * 1024);
-    const state = new Int32Array(shared, 0, 2);
+    Atomics.store(state, 0, 0);
+    Atomics.store(state, 1, 0);
     worker.postMessage({ operation, sql, args, shared });
     if (Atomics.wait(state, 0, 0, 30000) === 'timed-out') {
       stopped = true;
