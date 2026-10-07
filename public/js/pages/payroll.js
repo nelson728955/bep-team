@@ -21,7 +21,7 @@ function presetRange(preset, runs, ctx) {
   if (preset === 'last2') return [addDays(wk, -14), addDays(wk, -1)];
   if (preset === 'thisweek') return [wk, addDays(wk, 6)];
   const lastEnd = runs.reduce((m, r) => (r.end_date > m ? r.end_date : m), '');
-  const s = lastEnd ? addDays(lastEnd, 1) : addDays(wk, -14);
+  const s = lastEnd ? addDays(lastEnd, 1) : wk;
   return [s, addDays(s, periodLength(ctx) - 1)];
 }
 
