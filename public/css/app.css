@@ -536,14 +536,23 @@ dialog.modal footer > div { display: flex; gap: 8px; }
     font-size: 16px;
   }
   input[type=date], input[type=time] {
-    display: block;
+    display: inline-flex;
+    align-items: center;
     -webkit-appearance: none;
     appearance: none;
     width: 100%;
     min-width: 0;
+    height: 44px;
+    line-height: normal;
     text-align: left;
   }
-  input::-webkit-date-and-time-value { min-width: 0; text-align: left; }
+  input::-webkit-date-and-time-value {
+    min-width: 0;
+    text-align: left;
+    margin: 0;
+    padding: 0;
+    line-height: 42px;
+  }
   .btn, .icon-btn, .user-btn, .seg button { min-height: 44px; }
   .icon-btn, .user-btn { min-width: 44px; }
   .check { min-height: 40px; align-items: center; }
