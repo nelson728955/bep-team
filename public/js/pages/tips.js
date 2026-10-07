@@ -74,7 +74,7 @@ export async function render(root, ctx) {
             <thead><tr><th>Date</th><th>Shift</th><th>Split</th><th class="num">People</th><th class="num">Amount</th><th></th></tr></thead>
             <tbody>${pools.length ? pools.map((p) => `<tr data-open="${p.id}" style="cursor:pointer">
               <td class="nowrap">${fmtDate(p.date, { weekday: 'short', month: 'short', day: 'numeric' })}</td><td>${periodPill(p.period)}</td>
-              <td>${METHODS[p.method][0]}</td><td class="num">${p.allocations.length}</td><td class="num"><strong>${money(p.amount)}</strong></td>
+              <td>${(METHODS[p.method]?.[0] || ({hours: 'By hours worked', equal: 'Equal split'}[p.method]) || p.method)}</td><td class="num">${p.allocations.length}</td><td class="num"><strong>${money(p.amount)}</strong></td>
               <td class="right"><button class="btn btn-sm btn-ghost" data-del="${p.id}">Delete</button></td></tr>`).join('') : `<tr><td colspan="6">${emptyState('No tip pools in this range')}</td></tr>`}</tbody>
           </table></div>
         </div>
@@ -261,7 +261,7 @@ function renderEmployee(root, ctx, pools, start, end, cutoff) {
     </div>
     <div class="card"><div class="table-wrap"><table class="table">
       <thead><tr><th>Date</th><th>Shift</th><th>Split</th><th class="num">Pool total</th><th class="num">My hours</th><th class="num">My share</th></tr></thead>
-      <tbody>${mine.length ? mine.map((p) => `<tr><td>${fmtDate(p.date, { weekday: 'short', month: 'short', day: 'numeric' })}</td><td>${periodPill(p.period)}</td><td>${METHODS[p.method][0]}</td>
+      <tbody>${mine.length ? mine.map((p) => `<tr><td>${fmtDate(p.date, { weekday: 'short', month: 'short', day: 'numeric' })}</td><td>${periodPill(p.period)}</td><td>${(METHODS[p.method]?.[0] || ({hours: 'By hours worked', equal: 'Equal split'}[p.method]) || p.method)}</td>
         <td class="num">${money(p.amount)}</td><td class="num">${hrs(p.mine.hours)}</td><td class="num"><strong>${money(p.mine.amount)}</strong></td></tr>`).join('') : `<tr><td colspan="6">${emptyState('No tips in this period')}</td></tr>`}</tbody>
     </table></div></div>
   </div>`;
