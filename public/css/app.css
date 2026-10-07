@@ -525,3 +525,46 @@ dialog.modal footer > div { display: flex; gap: 8px; }
 .timeclock-table-wrap th.punch-actions { background: var(--surface-2); z-index: 2; }
 .timeclock-table-wrap tr:hover td.punch-actions { background: var(--row-hover); }
 .timeclock-table-wrap .punch-actions .btn { margin: 2px 0; }
+
+/* Touch tablets: desktop mouse layouts retain their existing styles. */
+@media screen and (hover: none) and (pointer: coarse) and (max-width: 1400px) {
+  .field, .row > *, .toolbar, .nav { min-width: 0; }
+  .field input, .field select, .field textarea {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+  input[type=date], input[type=time] {
+    display: block;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+  }
+  input::-webkit-date-and-time-value { min-width: 0; text-align: left; }
+  .btn, .icon-btn, .user-btn, .seg button { min-height: 44px; }
+  .icon-btn, .user-btn { min-width: 44px; }
+  .check { min-height: 40px; align-items: center; }
+  .check input { width: 20px; height: 20px; flex-shrink: 0; }
+  .nav { -webkit-overflow-scrolling: touch; }
+  .nav a { flex-shrink: 0; }
+  .topbar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); gap: 12px; }
+  .card-head { flex-wrap: wrap; gap: 12px; }
+  .card-head .toolbar { flex-wrap: wrap; }
+  .row { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); column-gap: 16px; }
+  dialog.modal { width: min(640px, calc(100vw - 40px)); max-height: calc(100dvh - 32px); overflow: hidden; }
+  dialog.modal-wide { width: min(880px, calc(100vw - 40px)); }
+  dialog.modal form { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); }
+  dialog.modal header, dialog.modal footer { flex-shrink: 0; background: var(--surface); }
+  dialog.modal .modal-body { min-height: 0; max-height: none; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
+  dialog.modal footer { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+  .sched-wrap, .table-wrap { -webkit-overflow-scrolling: touch; }
+  .sched .chip { min-height: 44px; }
+  #tooltip { display: none !important; }
+}
+@media screen and (hover: none) and (pointer: coarse) and (min-width: 721px) and (max-width: 1100px) {
+  .page { padding: 20px; }
+  .grid-main { grid-template-columns: minmax(0, 1fr); }
+}
