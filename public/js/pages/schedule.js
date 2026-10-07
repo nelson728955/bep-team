@@ -358,6 +358,14 @@ function shiftModal(ctx, data, shift, done) {
   });
   const f = m.form;
   const refresh = () => {
+    let matchedPreset = false;
+    f.querySelectorAll('[data-tpl]').forEach(button => {
+      const [start, end, br] = button.dataset.tpl.split('|');
+      const selected = !matchedPreset && f.start.value === start && f.end.value === end && Number(f.break_min.value) === Number(br);
+      button.classList.toggle('preset-selected', selected);
+      button.setAttribute('aria-pressed', String(selected));
+      if (selected) matchedPreset = true;
+    });
     const uid = Number(f.user_id.value) || null;
     const date = f.date.value;
     const warn = [];

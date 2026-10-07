@@ -577,3 +577,10 @@ dialog.modal footer > div { display: flex; gap: 8px; }
   .page { padding: 20px; }
   .grid-main { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Show which preset matches the shift currently being edited. */
+[data-presets] .btn.preset-selected {
+  background: color-mix(in srgb, var(--surface) 86%, var(--text) 14%);
+  border-color: color-mix(in srgb, var(--border-strong) 65%, var(--text) 35%);
+  font-weight: 600;
+}
