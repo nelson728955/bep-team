@@ -3,6 +3,21 @@ import { addDays, msAt, punchHoursInWindow, round2 } from './util.js';
 
 export const TIP_PERIODS = ['morning', 'night', 'all'];
 
+export function manualTipSplit(date, amount, positionIds, period, allocations) {
+  const foh = db.prepare("SELECT id FROM positions WHERE department='FOH'").all().map(p => p.id);
+  const eligible = computeTipSplit(date, 1, 'hours', positionIds.filter(id => foh.includes(id)), period);
+  const seen = new Set();
+  const result = allocations.map(a => {
+    const person = eligible.find(p => p.user_id === Number(a.user_id));
+    const cents = Math.round(Number(a.amount) * 100);
+    if (!person || seen.has(person.user_id) || !Number.isFinite(Number(a.amount)) || Number(a.amount) < 0 || Math.abs(Number(a.amount) * 100 - cents) > 0.00001) throw new Error('Enter valid amounts for eligible FOH workers only.');
+    seen.add(person.user_id);
+    return { ...person, amount: cents / 100, weight: person.hours };
+  });
+  if (result.reduce((sum,p) => sum + Math.round(p.amount * 100),0) !== Math.round(amount * 100)) throw new Error('Manual amounts must match the tip pool total.');
+  return result.filter(p => p.amount > 0);
+}
+
 // A few minutes across the cutoff (clocking in at 3:55 for a 4:00 dinner shift)
 // should not earn a share of the other pool.
 const MIN_PERIOD_HOURS = 0.25;

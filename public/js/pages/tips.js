@@ -2,9 +2,8 @@ import { openMonerisImport } from './tips-import.js';
 import { api, esc, money, hrs, fmtDate, fmtDateLong, fmtTime, fmtRange, weekStart, addDays, today, formValues, toast, emptyState, avatar, confirmDialog } from '../ui.js';
 
 const METHODS = {
-  hours: ['By hours worked', 'Each person gets a share proportional to the hours they worked.'],
   points: ['By role points', 'Share = hours × the position’s tip points (set on the Team page).'],
-  equal: ['Equal split', 'Everyone who worked gets the same amount.'],
+  manual: ['Manual amounts', 'Enter the exact tips for each FOH employee who worked.'],
 };
 const PERIOD_ORDER = { morning: 0, night: 1, all: 2 };
 const state = { days: 14, mode: 'split', employeeWeek: null }; // mode: split (morning + night) | day (whole day)
@@ -58,7 +57,8 @@ export async function render(root, ctx) {
             </div>
             ${split ? `<p class="small muted" style="margin-top:-4px">People who work a double get a share of both pots, based on their hours before and after ${fmtTime(cutoff)}. <a href="#/settings">Change the cutoff time</a></p>` : ''}
             <div class="field"><span>How to split</span>
-              ${Object.entries(METHODS).map(([k, [l, hint]], i) => `<label class="check" style="display:flex;align-items:flex-start"><input type="radio" name="method" value="${k}" ${i === 1 ? 'checked' : ''}><span><strong>${l}</strong><br><span class="small muted">${hint}</span></span></label>`).join('')}
+              ${Object.entries(METHODS).map(([k, [l, hint]], i) => `<label class="check" style="display:flex;align-items:flex-start"><input type="radio" name="method" value="${k}" ${i === 0 ? 'checked' : ''}><span><strong>${l}</strong><br><span class="small muted">${hint}</span></span></label>`).join('')}
+              <div data-manual hidden></div>
             </div>
             <div class="field"><span>Positions in the pool</span>
               <div>${ctx.positions.map((p) => `<label class="check"><input type="checkbox" name="position_ids" data-multi value="${p.id}" ${tipPositions.includes(p) ? 'checked' : ''}> ${esc(p.name)} <span class="muted small">(${p.tip_points} pts)</span></label>`).join('')}</div>
@@ -135,12 +135,35 @@ export async function render(root, ctx) {
   const result = form.querySelector('[data-result]');
   const saveBtn = form.querySelector('[data-save]');
   const periods = split ? ['morning', 'night'] : ['all'];
+  const manualPanel = form.querySelector('[data-manual]');
+  let loadVersion = 0;
+  async function loadManual() {
+    const version = ++loadVersion;
+    const v = formValues(form);
+    manualPanel.hidden = v.method !== 'manual';
+    periods.forEach(period => { form.elements[period].closest('label').hidden = !manualPanel.hidden; });
+    form.querySelector('[name="position_ids"]')?.closest('.field')?.toggleAttribute('hidden', !manualPanel.hidden);
+    root.querySelector('[data-import]').disabled = !manualPanel.hidden;
+    if (manualPanel.hidden) return;
+    manualPanel.innerHTML = '<p>Loading FOH workers…</p>';
+    saveBtn.disabled = true;
+    try {
+      const workers = await Promise.all(periods.map(period => api('/tips/workers', {method:'POST',body:{date:v.date,period}})));
+      if(version !== loadVersion) return;
+      manualPanel.innerHTML = periods.map((period,i) => `<h3>${period === 'all' ? 'Whole day' : period === 'morning' ? 'Morning' : 'Night'}</h3>${workers[i].map(worker => `<label class="field"><span>${esc(worker.name)} · ${hrs(worker.hours)} hrs</span><input type="number" min="0" step="0.01" value="0.00" data-manual-user="${worker.user_id}" data-period="${period}" aria-label="${esc(worker.name)} ${period} tips"></label>`).join('') || '<p class="muted">No FOH hours recorded for this period.</p>'}`).join('');
+    } catch(error) { if(version === loadVersion) manualPanel.innerHTML = `<div class="alert">${esc(error.message)}</div>`; }
+  }
+  form.addEventListener('change', e => { if (e.target.name === 'date' || e.target.name === 'method') loadManual(); });
 
   // One pool per period that has an amount entered.
   const buildPools = () => {
     const v = formValues(form);
     if (!v.date) throw new Error('Pick the date worked');
-    const list = periods.filter((p) => Number(v[p]) > 0).map((p) => ({ date: v.date, period: p, amount: Number(v[p]), method: v.method, position_ids: v.position_ids }));
+    const list = periods.map(p => {
+      const allocations = [...manualPanel.querySelectorAll(`[data-period="${p}"]`)].map(input => ({user_id:Number(input.dataset.manualUser),amount:Number(input.value)}));
+      const manual = v.method === 'manual';
+      return {date:v.date,period:p,amount:manual ? Math.round(allocations.reduce((s,a)=>s+a.amount,0)*100)/100 : Number(v[p]),method:v.method,position_ids:manual ? ctx.positions.filter(p=>p.department==='FOH').map(p=>p.id) : v.position_ids,allocations};
+    }).filter(p=>p.amount>0);
     if (!list.length) throw new Error(split ? 'Enter morning tips, night tips, or both' : 'Enter the tips for the day');
     return { list, method: v.method };
   };

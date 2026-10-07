@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { db, tx, getSettings, DEFAULT_SETTINGS } from './db.js';
 import { seed } from './seed.js';
-import { computeTipSplit, TIP_PERIODS } from './tips.js';
+import { computeTipSplit, manualTipSplit, TIP_PERIODS } from './tips.js';
 import { computePayroll, savePayrollRun } from './payroll.js';
 import {
   addDays, dateOfMs, hashPassword, isHm, isYmd, msAt, newToken, punchHours, round2,
@@ -598,16 +598,28 @@ function tipInput(b) {
   const date = reqDate(b.date);
   const amount = round2(num(b.amount, 0));
   if (amount <= 0) bad('Enter a tip amount');
-  const method = ['hours', 'points', 'equal'].includes(b.method) ? b.method : 'hours';
+  const method = ['hours', 'points', 'equal', 'manual'].includes(b.method) ? b.method : 'points';
   const period = TIP_PERIODS.includes(b.period) ? b.period : 'all';
   const positionIds = (b.position_ids || []).map(Number).filter(Boolean);
   if (!positionIds.length) bad('Pick at least one position to include');
-  return { date, amount, method, period, positionIds, label: str(b.label, 80) || PERIOD_LABEL[period] };
+  return { date, amount, method, period, positionIds, allocations: Array.isArray(b.allocations) ? b.allocations : [], label: str(b.label, 80) || PERIOD_LABEL[period] };
 }
+function tipSplit(t) {
+  if (t.method !== 'manual') return computeTipSplit(t.date,t.amount,t.method,t.positionIds,t.period);
+  try { return manualTipSplit(t.date,t.amount,t.positionIds,t.period,t.allocations); }
+  catch (error) { bad(error.message); }
+}
+app.post('/api/tips/workers', managerOnly, route((req) => {
+  const date = reqDate(req.body.date);
+  const period = TIP_PERIODS.includes(req.body.period) ? req.body.period : 'all';
+  syncScheduledPunches();
+  const ids = db.prepare("SELECT id FROM positions WHERE department='FOH'").all().map(p => p.id);
+  return computeTipSplit(date,1,'hours',ids,period);
+}));
 app.post('/api/tips/preview', managerOnly, route((req) => {
   const t = tipInput(req.body);
   syncScheduledPunches();
-  return computeTipSplit(t.date, t.amount, t.method, t.positionIds, t.period);
+  return tipSplit(t);
 }));
 // Accepts { pools: [...] } so morning and night tips are saved together (all or nothing).
 app.post('/api/tips', managerOnly, route((req) => {
@@ -620,7 +632,7 @@ app.post('/api/tips', managerOnly, route((req) => {
     if (!req.body.force && exists.get(t.date, t.period, t.period)) {
       bad(`Tips for ${t.period === 'all' ? 'that day' : 'the ' + t.period} of ${t.date} were already distributed. Delete that pool first to redo it.`);
     }
-    const split = computeTipSplit(t.date, t.amount, t.method, t.positionIds, t.period);
+    const split = tipSplit(t);
     if (!split.length) bad(`Nobody in those positions worked the ${t.period === 'all' ? 'day' : t.period} of ${t.date}`);
     return { t, split };
   });
