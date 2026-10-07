@@ -163,7 +163,11 @@ async function route() {
       ctx = buildCtx(await api('/bootstrap'));
     } catch {
       await api('/branding').then((b) => applyTheme(b.theme)).catch(() => {});
-      login.render(app, async () => { ctx = buildCtx(await api('/bootstrap')); route(); });
+      login.render(app, async () => {
+        ctx = buildCtx(await api('/bootstrap'));
+        history.replaceState(null, '', '#/dashboard');
+        await route();
+      });
       return;
     }
   }
