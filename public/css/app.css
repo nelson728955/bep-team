@@ -584,3 +584,10 @@ dialog.modal footer > div { display: flex; gap: 8px; }
   border-color: color-mix(in srgb, var(--border-strong) 65%, var(--text) 35%);
   font-weight: 600;
 }
+
+/* Half-day shifts occupy the corresponding side of each schedule cell. */
+.sched .chip.shift-am, .sched .chip.shift-pm { width: calc(50% - 2px); box-sizing: border-box; }
+.sched .chip.shift-am { margin-right: auto; }
+.sched .chip.shift-pm { margin-left: auto; }
+.sched .chip.shift-am .t, .sched .chip.shift-pm .t,
+.sched .chip.shift-am .p, .sched .chip.shift-pm .p { white-space: normal; overflow-wrap: anywhere; }

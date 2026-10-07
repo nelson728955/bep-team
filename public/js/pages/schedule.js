@@ -40,6 +40,9 @@ export async function render(root, ctx) {
   const sales = new Map((data.sales || []).map((s) => [s.date, s]));
 
   const chip = (s) => {
+    const cutoff = ctx.settings.tip_split_time || '16:00';
+    const overnight = s.end <= s.start;
+    const placement = s.start >= cutoff ? 'shift-pm' : !overnight && s.end <= cutoff ? 'shift-am' : 'shift-full';
     const p = ctx.position(s.position_id);
     const req = reqFor(s.id);
     const mine = s.user_id === ctx.me.id;
@@ -47,7 +50,7 @@ export async function render(root, ctx) {
     if (req?.type === 'drop' && req.status === 'open') flag = 'Up for grabs';
     else if (req?.status === 'claimed') flag = `${M ? esc(ctx.userName(req.claimer_id)) + ' wants it' : 'Swap pending approval'}`;
     const tip = `<strong>${fmtTime(s.start)}–${fmtTime(s.end)}</strong> · ${esc(p?.name || 'No position')}<br>${hrs(shiftHours(s))} hrs${s.break_min ? `, ${s.break_min}m break` : ''}${s.notes ? `<br>${esc(s.notes)}` : ''}${!s.published ? '<br><em>Draft, not published</em>' : ''}`;
-    return `<button class="chip ${s.published ? '' : 'draft'} ${mine && !M ? 'mine' : ''}" ${M ? 'draggable="true"' : ''} style="--c:${esc(p?.color || '#888')}" data-shift="${s.id}" data-tip="${esc(tip)}">
+    return `<button class="chip ${placement} ${s.published ? '' : 'draft'} ${mine && !M ? 'mine' : ''}" ${M ? 'draggable="true"' : ''} style="--c:${esc(p?.color || '#888')}" data-shift="${s.id}" data-tip="${esc(tip)}">
       <div class="t">${fmtTime(s.start)} – ${fmtTime(s.end)}</div>
       <div class="p">${esc(p?.name || '')}</div>
       ${flag ? `<div class="flag">${flag}</div>` : ''}</button>`;
