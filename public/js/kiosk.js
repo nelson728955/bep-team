@@ -2,22 +2,23 @@ let code='',busy=false,resetTimer;
 const el=id=>document.getElementById(id);
 const terminal=el('terminal');
 const screen=document.createElement('section');screen.className='employee-screen';screen.hidden=true;terminal.after(screen);
+const back=document.createElement('button');back.className='btn kiosk-back';back.textContent='← Back to keypad';back.hidden=true;screen.before(back);back.onclick=reset;
 const safe=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time=value=>new Date(value).toLocaleTimeString('en-CA',{timeZone:'America/Toronto',hour:'numeric',minute:'2-digit'});
 async function request(path,body){const r=await fetch('/api/'+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const data=await r.json();if(!r.ok)throw new Error(data.error||'Request failed');return data;}
 function draw(){el('dots').innerHTML=Array.from({length:4},(_,i)=>`<span>${i<code.length?'●':'○'}</span>`).join('');el('dots').setAttribute('aria-label',`Work ID, ${code.length} digits entered`);el('punch').disabled=busy||code.length!==4;el('pad').querySelectorAll('button').forEach(b=>b.disabled=busy);}
-function reset(){clearTimeout(resetTimer);code='';screen.hidden=true;screen.innerHTML='';terminal.hidden=false;busy=false;draw();}
+function reset(){clearTimeout(resetTimer);code='';screen.hidden=true;back.hidden=true;screen.innerHTML='';terminal.hidden=false;busy=false;draw();}
 function show(data){
- terminal.hidden=true;screen.hidden=false;
+ terminal.hidden=true;screen.hidden=false;back.hidden=false;
  const initials=data.name.split(/\s+/).map(n=>n[0]).slice(0,2).join('');
  const status=data.punch?(data.punch.break_start?'On break':'Punched in'):'Punched out';
- screen.innerHTML=`<button class="btn kiosk-back" data-back>← Back to keypad</button><div class="employee-avatar">${safe(initials)}</div><h2>${safe(data.name)}</h2><span class="pill pill-good">${status}</span>${data.punch?`<p>${Math.max(0,Math.floor((data.now-data.punch.clock_in)/60000))} minutes since punch-in · ${time(data.punch.clock_in)}</p>`:''}<div class="shift-card"><h3>Current shift</h3>${data.shift?`<p>${safe(data.shift.start)} – ${safe(data.shift.end)}<br>${safe(data.shift.position)}</p>`:'<p>No scheduled shift linked</p>'}${data.punch?'<button class="btn btn-danger" data-end>End shift</button>':'<button class="btn btn-primary" data-in>Punch in</button>'}</div>`;
- screen.querySelector('[data-back]').onclick=reset;
+ screen.innerHTML=`<div class="employee-avatar">${safe(initials)}</div><h2>${safe(data.name)}</h2><span class="pill pill-good">${status}</span>${data.punch?`<p>${Math.max(0,Math.floor((data.now-data.punch.clock_in)/60000))} minutes since punch-in · ${time(data.punch.clock_in)}</p>`:''}<div class="shift-card"><h3>Current shift</h3>${data.shift?`<p>${safe(data.shift.start)} – ${safe(data.shift.end)}<br>${safe(data.shift.position)}</p>`:'<p>No scheduled shift linked</p>'}${data.punch?'<button class="btn btn-danger" data-end>End shift</button>':'<button class="btn btn-primary" data-in>Punch in</button>'}</div>`;
+
  screen.querySelector('[data-in]')?.addEventListener('click',()=>act('in'));
  screen.querySelector('[data-end]')?.addEventListener('click',()=>{
   clearTimeout(resetTimer);
-  screen.querySelector('.shift-card').innerHTML=`<h3>What would you like to do?</h3><button class="btn" data-break>${data.punch.break_start?'Return from break':'Go for a break'}</button><button class="btn btn-danger" data-out>Punch out</button>`;
-  screen.querySelector('[data-break]').onclick=()=>act('break');screen.querySelector('[data-out]').onclick=()=>act('out');
+  screen.querySelector('.shift-card').innerHTML=`<h3>Finish your shift?</h3><button class="btn btn-danger" data-out>Punch out</button>`;
+  screen.querySelector('[data-out]').onclick=()=>act('out');
   resetTimer=setTimeout(reset,20000);
  });
  clearTimeout(resetTimer);resetTimer=setTimeout(reset,20000);
