@@ -1,5 +1,6 @@
 import { syncScheduledPunches, deletePunch } from './scheduled-punches.js';
 import express from 'express';
+import { mountKioskPublic, mountKioskManager, workId } from './kiosk.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { db, tx, getSettings, DEFAULT_SETTINGS } from './db.js';
@@ -71,6 +72,7 @@ function setSession(res, token, maxAgeSec) {
 }
 
 const publicUser = (u) => u && {
+  work_id: workId(u),
   id: u.id, name: u.name, email: u.email, phone: u.phone, role: u.role, position_id: u.position_id,
   hourly_rate: u.hourly_rate, filing_status: u.filing_status, extra_withholding: u.extra_withholding,
   hire_date: u.hire_date, active: u.active, td1_federal: u.td1_federal, td1_quebec: u.td1_quebec,
@@ -113,6 +115,7 @@ app.post('/api/logout', route((req, res) => {
   return { ok: true };
 }));
 
+mountKioskPublic(app);
 app.use('/api', (req, res, next) => {
   const { sid } = parseCookies(req.headers.cookie);
   const row = sid && db.prepare(
@@ -126,6 +129,7 @@ app.use('/api', (req, res, next) => {
 });
 
 const managerOnly = (req, res, next) => (req.isManager ? next() : res.status(403).json({ error: 'Managers only' }));
+mountKioskManager(app, managerOnly, route);
 
 app.post('/api/me/password', route((req) => {
   const { current, next: pw } = req.body;

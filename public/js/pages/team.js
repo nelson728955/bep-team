@@ -95,6 +95,10 @@ function userModal(ctx, u, done) {
         ${isNew ? '' : `<label class="field"><span>Status</span><select name="active">${options([['1', 'Active'], ['', 'Inactive (cannot sign in)']], u.active ? '1' : '')}</select></label>`}
       </div>`,
     submitLabel: isNew ? 'Add employee' : 'Save',
+    extra: isNew ? [] : [{ label: 'Work ID', onClick: () => {
+      modal({ title: `Work ID · ${u.name}`, body: `<label class="field"><span>Four-digit work ID</span><input name="code" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required value="${esc(u.work_id || '')}"><span class="hint">Defaults to the last four phone digits. Each active employee must have a different ID.</span></label>`, onSubmit: async v => { await api('/users/'+u.id+'/work-id',{method:'PUT',body:v});toast('Work ID saved');await done(); } });
+      return false;
+    } }],
     onOpen: (form) => {
       if (!isNew) return;
       const position = form.elements.position_id;
