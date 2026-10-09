@@ -111,6 +111,7 @@ function renderShell() {
       <div class="menu-head"><strong>${esc(ctx.me.name)}</strong><div class="small muted">${esc(ctx.me.email)} · ${ctx.isManager ? 'Manager' : esc(ctx.position(ctx.me.position_id)?.name || 'Employee')}</div></div>
       ${ctx.isManager ? `<button data-act="theme">${ctx.settings.theme === 'classic' ? 'Switch to Bếp look' : 'Switch to classic look'}</button>` : ''}
       <button data-act="password">Change password</button>
+      ${ctx.isManager ? '<a href="/kiosk.html">Tablet Time Clock</a>' : ''}
       <button data-act="logout">Sign out</button>`);
   });
 }
@@ -165,6 +166,11 @@ async function route() {
       await api('/branding').then((b) => applyTheme(b.theme)).catch(() => {});
       login.render(app, async () => {
         ctx = buildCtx(await api('/bootstrap'));
+        if (ctx.isManager && sessionStorage.getItem('tablet-setup') === '1') {
+          sessionStorage.removeItem('tablet-setup');
+          location.assign('/kiosk.html');
+          return;
+        }
         history.replaceState(null, '', '#/dashboard');
         await route();
       });

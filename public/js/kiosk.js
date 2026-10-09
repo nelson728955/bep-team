@@ -1,4 +1,5 @@
 let code='',busy=false;
+document.querySelector('#setup a').addEventListener('click',()=>sessionStorage.setItem('tablet-setup','1'));
 const el=id=>document.getElementById(id);
 async function request(path,body){const r=await fetch('/api/'+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const data=await r.json();if(!r.ok)throw new Error(data.error || 'Request failed');return data;}
 function draw(){el('dots').textContent='●'.repeat(code.length)+'○'.repeat(4-code.length);el('dots').setAttribute('aria-label',`Work ID, ${code.length} digits entered`);el('punch').disabled=busy||code.length!==4;el('pad').querySelectorAll('button').forEach(b=>b.disabled=busy);}
