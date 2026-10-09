@@ -24,8 +24,23 @@ export function mountKioskPublic(app) {
       const users=db.prepare('SELECT * FROM users WHERE active=1').all().filter(u=>workId(u)===code);
       if(!/^\d{4}$/.test(code) || users.length!==1) return res.status(400).json({error:'Work ID not found or shared by multiple employees. Ask your manager.'});
       const user=users[0];
+      const requested=req.body.action;
+      if(!['status','in','out','break'].includes(requested)) return res.status(400).json({error:'Choose a clock action.'});
+      const details=()=>{
+        const punch=db.prepare('SELECT * FROM punches WHERE user_id=? AND clock_out IS NULL ORDER BY clock_in DESC LIMIT 1').get(user.id);
+        const shift=punch?.shift_id ? db.prepare('SELECT s.start,s.end,pos.name AS position FROM shifts s LEFT JOIN positions pos ON pos.id=s.position_id WHERE s.id=?').get(punch.shift_id) : null;
+        return {name:user.name,punch:punch?{clock_in:punch.clock_in,break_start:punch.break_start}:null,shift,now:Date.now()};
+      };
+      if(requested==='status') return res.json(details());
       const action=tx(()=>{
         const open=db.prepare('SELECT * FROM punches WHERE user_id=? AND clock_out IS NULL ORDER BY clock_in DESC LIMIT 1').get(user.id);
+        if(requested==='in' && open) throw new Error('Already punched in. Enter your ID again.');
+        if(requested!=='in' && !open) throw new Error('No open shift. Enter your ID again.');
+        if(requested==='break') {
+          if(open.break_start) db.prepare('UPDATE punches SET break_min=break_min+?,break_start=NULL WHERE id=?').run((now-open.break_start)/60000,open.id);
+          else db.prepare('UPDATE punches SET break_start=? WHERE id=?').run(now,open.id);
+          return open.break_start?'resume':'break';
+        }
         if(open){db.prepare('UPDATE punches SET clock_out=?,break_min=break_min+?,break_start=NULL WHERE id=?').run(now,open.break_start?(now-open.break_start)/60000:0,open.id);return 'out';}
         const shifts=db.prepare('SELECT * FROM shifts WHERE user_id=? AND date=? AND published=1 ORDER BY start').all(user.id,today());
         const shift=shifts.sort((a,b)=>Math.abs(msAt(a.date,a.start)-now)-Math.abs(msAt(b.date,b.start)-now))[0];
@@ -33,7 +48,7 @@ export function mountKioskPublic(app) {
         db.prepare('INSERT INTO punches(user_id,shift_id,clock_in) VALUES (?,?,?)').run(user.id,shift?.id ?? null,now);
         return 'in';
       });
-      res.json({name:user.name,action,now});
+      res.json({...details(),action,now});
     }catch(error){next(error);}
   });
 }
