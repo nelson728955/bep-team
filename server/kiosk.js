@@ -28,7 +28,8 @@ export function mountKioskPublic(app) {
       if(!['status','in','out','break'].includes(requested)) return res.status(400).json({error:'Choose a clock action.'});
       const details=()=>{
         const punch=db.prepare('SELECT * FROM punches WHERE user_id=? AND clock_out IS NULL ORDER BY clock_in DESC LIMIT 1').get(user.id);
-        const shift=punch?.shift_id ? db.prepare('SELECT s.start,s.end,pos.name AS position FROM shifts s LEFT JOIN positions pos ON pos.id=s.position_id WHERE s.id=?').get(punch.shift_id) : null;
+        const scheduled = db.prepare('SELECT s.*,pos.name AS position,pos.department FROM shifts s LEFT JOIN positions pos ON pos.id=s.position_id WHERE s.user_id=? AND s.date=? AND s.published=1').all(user.id,today());
+        const shift=punch?.shift_id ? db.prepare('SELECT s.*,pos.name AS position,pos.department FROM shifts s LEFT JOIN positions pos ON pos.id=s.position_id WHERE s.id=?').get(punch.shift_id) : scheduled.sort((a,b)=>Math.abs(msAt(a.date,a.start)-Date.now())-Math.abs(msAt(b.date,b.start)-Date.now()))[0];
         return {name:user.name,punch:punch?{clock_in:punch.clock_in,break_start:punch.break_start}:null,shift,now:Date.now()};
       };
       if(requested==='status') return res.json(details());
