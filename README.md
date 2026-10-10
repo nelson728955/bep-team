@@ -1,79 +1,126 @@
 # BepShift
 
-Restaurant team management, in the spirit of 7shifts: scheduling, time clock, tip pooling, payroll, and performance reports, with separate manager and employee views.
+BepShift is a restaurant team management web app built for Bếp · Cuisine Vietnamienne. It includes scheduling, employee accounts, attendance, tips, payroll estimates, and restaurant performance reports.
 
-## Run it
+The app uses Node.js, Express, and vanilla JavaScript. Local installations use SQLite; the hosted app uses a Turso libSQL database through `@libsql/client`.
 
-Requires Node.js 22.13 or newer (it uses the built-in `node:sqlite`).
+## Run locally
 
-```bash
-npm install
+Requires Node.js **22.13 or newer**. The hosting configuration specifies Node.js 24.19.0.
+
+```powershell
+npm ci
 npm start
 ```
 
-Open http://localhost:3100. On first start the app creates `data/shifthub.db` and fills it with a demo restaurant: 10 employees, 5 weeks of shifts, punches, sales, tips, and one past payroll run.
+Open http://localhost:3100. Use `npm run dev` to restart automatically when server files change. Set `PORT` to use another port.
 
-### Demo accounts (local test data only)
+On the first development start with an empty database, the app creates demo restaurant data. Local records are stored in `data/shifthub.db`; the filename is retained for compatibility with existing installations.
 
-| Role     | Email                    | Password      |
-|----------|--------------------------|---------------|
-| Manager  | `manager@shifthub.test`  | `manager123`  |
-| Employee | `maya@shifthub.test`     | `employee123` |
+### Local demo accounts
 
-Every demo employee signs in as `<firstname>@shifthub.test` with `employee123` (jordan, ava, priya, luis, sam, marcus, elena, tom, dev).
+| Role | Email | Password |
+|---|---|---|
+| Manager | `manager@shifthub.test` | `manager123` |
+| Employee | `maya@shifthub.test` | `employee123` |
 
-To wipe everything and start over, run `npm run reset`, then `npm start`. To start with your own team, sign in as the manager, add your people under **More → Team**, and deactivate the demo staff (or reset and edit `server/seed.js`).
+Other seeded employees use their first name at `shifthub.test` and `employee123`. These addresses are retained for compatibility. Production startup rejects databases containing these demo accounts.
+
+`npm run reset` **deletes the default local database and its journal files**. Stop the server first. The next development start loads demo data again. This command does not reset Turso or a custom `DATA_DIR`. Back up records before using it.
+
+Windows launch helpers are `Start-ShiftHub.ps1` and `Stop-ShiftHub.ps1`. Their filenames are retained so existing desktop shortcuts continue working. `Start-Blank-Test.ps1` opens the separate test installation on port 3101; it does not create a new blank manager account by itself.
 
 ## Features
 
-| Area | Managers | Employees |
-|------|----------|-----------|
-| **Dashboard** | Today's projected sales, scheduled labor %, who's in, late or no-shows, pending approvals, 14-day sales and labor charts | Clock in/out, next shifts, hours and tips this week |
-| **Schedules** | Weekly grid by department, open shifts, draft/publish, copy last week, shift templates, warnings for time off, availability, overlaps, and overtime, **budget tool** (projected vs. actual sales, scheduled vs. actual labor %) | See the published schedule, offer a shift to anyone or to one coworker, request open shifts |
-| **Time Clock** | Timesheets with late/early flags, edit, add, and approve punches, see who's on the clock | Clock in, breaks, clock out, own timesheet |
-| **Requests** | Approve time off and swaps, see team availability | Request time off, pick up shifts, set weekly availability |
-| **Tasks** | Build opening and closing checklists | Check off tasks, with who did it and when |
-| **Engage** | Post and pin announcements | Team chat (refreshes every 5 seconds) |
-| **Tips** | Separate **morning and night** tip pots (or one whole-day pot), split by hours, by role points, or equally, with a preview before distributing | My tips (morning vs. night) and average per hour |
-| **Payroll / My Pay** | Pay-period preview (regular pay, weekly overtime, tips, estimated taxes, net), run payroll, pay stubs, CSV export | Pay stubs (printable), year-to-date totals |
-| **Reports** | Sales vs. projected, labor %, sales per labor hour, covers, average check, weekday averages, labor by department and employee, daily sales entry, CSV export | – |
-| **Log Book** | Daily manager notes (maintenance, 86'd items, incidents) next to that day's numbers | – |
+| Area | Current behavior |
+|---|---|
+| Dashboard | Manager restaurant overview; employee shifts, hours and tips. Every successful sign-in opens Dashboard. |
+| Schedules | Weekly grid, departments, open shifts, availability/time-off warnings, editable/addable/removable presets, copy last week, publish, and clear-week confirmation. Managers can drag a shift to another day in the same employee row to copy it as a draft. |
+| Shift labels | Full shifts occupy the full cell; AM shifts occupy its left half and PM shifts its right half, based on the configured morning/night cutoff. |
+| Time Clock | Day or week view, employee filter, add/edit/delete/approve punches, current attendance and hours. Published shifts for today generate clearly labeled, unapproved estimates. Deleting a linked punch prevents automatic regeneration for that employee and shift. |
+| Tablet Time Clock | Dedicated workplace keypad, manager activation, four-digit work IDs, shift selection, explicit Start shift, punch-out confirmation and automatic reset. No break option is offered on the tablet. |
+| Team | Managers first, then FOH and BOH; positions, pay rates, access and active status. Managers can manage employee availability and work IDs. New cook positions default to $20/hour in Add Employee; existing pay rates are preserved. |
+| Requests | Time-off requests, shift pickups/swaps and weekly availability. |
+| Tasks / Engage | Checklists, announcements and team chat. |
+| Tips | Morning/night or whole-day pools, role-point distribution, or exact manual amounts for FOH workers with recorded hours. Preview before saving; employee totals support weekly viewing. Date worked defaults to today. |
+| Moneris import | Import card-tip totals from a CSV report, review mapped columns and add cash tips. This is a file import, not a live terminal connection. Manual tip mode disables import. |
+| Payroll / My Pay | Approved completed hours, distributed tips, configured overtime, estimated deductions/contributions, payroll history, printable stubs and CSV export. The first Next pay period starts in the current week; subsequent periods follow the latest saved run. |
+| Reports / Log Book | Sales and labor comparisons, daily sales entry, CSV export and manager notes. |
 
-## Look and feel
+Historical tip pools using hours or equal splitting remain readable, but these methods are no longer offered as new manual-form choices. The proposed 3% sales deduction from tips is **on hold and not implemented**.
 
-The app ships with two looks, and managers choose one for everyone:
+## Set up the workplace tablet
 
-- **Bếp** (default): built from the restaurant logo (`public/img/bep-logo.png`). It uses the logo's dark lacquer brown, noodle gold, and rice-paper cream, with Playfair Display headings.
-- **Classic**: the original BepShift purple and orange.
+1. Sign in as a manager on the tablet.
+2. Open the account menu (initials at the top right) → **Tablet Time Clock**. The direct path is `/kiosk.html`.
+3. Tap **Activate tablet**. Activation pairs that browser and signs the manager out.
+4. Employees enter their four-digit ID and tap **Sign In** to see their shift. **Start shift** records attendance; **End shift** leads to punch-out confirmation.
 
-To switch, go to **More → Settings → Appearance**, or use the account menu (top right) → *Switch to classic look / Switch to Bếp look*. All theme colors live in `public/css/app.css`, under the `[data-theme="bep"]` block.
+The default ID is the last four numeric digits of the employee's phone number. Missing phone numbers and duplicate IDs require a manager-assigned unique ID under **Team → employee → Work ID**. This code is for the paired punch tablet, not an account password.
 
-## How the numbers work
+Pairing lasts up to one year and is stored in a browser cookie. Clearing cookies or changing browsers requires reactivation. Internet access is required; offline punching is not supported. The Full screen button depends on browser support. Use the tablet's device settings to keep the screen awake and restrict access to the workplace browser.
 
-- **Labor cost** = hours × hourly rate. Scheduled labor uses shift length minus the unpaid break. Actual labor uses punches.
-- **Overtime** is paid after 40 hours a week (Monday to Sunday) at 1.5×, as Québec labour standards require.
-- **Payroll** only counts **approved, completed** punches. Anything else shows as a warning on the payroll page.
-- **Québec payroll (2026 rates)**: federal income tax (with the 16.5% Québec abatement), Québec income tax (with the 6% deduction for workers, up to $1,450), QPP (6.3%, plus QPP2 above $74,600), EI at the Québec rate (1.30%), and QPIP (0.43%). Annual maximums are tracked from earlier pay stubs in the same year. Employer contributions are also calculated: the QPP match, EI at 1.4×, QPIP (0.602%), HSF (default 1.65%), CNT (0.06%), and optionally CNESST. The payroll page shows a remittance summary for Revenu Québec and the CRA. All rates live in `server/rates-qc.js`, with sources. **Update that file every January 1.** These are estimates, not a certified payroll calculation. Check them against Revenu Québec's WebRAS calculator or a payroll provider. BepShift does not remit or file anything.
-- **Vacation pay** is 4%, or 6% after 3 years of service (based on hire date), including tips. It is accrued by default, or can be added to every pay (Settings).
-- **Minimum wage**: $16.60 general and $13.30 for employees receiving tips (May 1, 2026). Positions with tip points use the tipped rate. Wages below the minimum are flagged on the Team and Payroll pages. Update both rates in Settings every May 1.
-- **Morning / night tips**: hours before the cutoff (Settings, default 4:00 PM) count toward the morning pot, and hours after it toward the night pot. A double shift earns from both pots by its hours on each side. Less than 15 minutes on one side (e.g. clocking in at 3:55 for a 4:00 shift) does not count. Each date and shift can only be paid out once.
-- **Moneris card tips**: on the Tips page, click *Import Moneris report* and upload the CSV export of the Moneris Go portal's Financial transactions report. BepShift totals card tips per day, split into morning and night by transaction time (sales before 4:00 AM count toward the previous night). It subtracts refunds and voids, ignores declined payments and uncompleted pre-authorizations, and lets you add cash tips before distributing. Days already paid out are skipped. Column names are detected automatically, including French exports. If detection misses, pick the columns by hand, and the choice is remembered in that browser. The file is read in the browser, and only tip totals are saved.
-- **Tip points**: each position has a weight (e.g. Server 1.0, Busser 0.5). With the *role points* method, a person's share is hours × points.
+## Appearance and devices
+
+Managers can switch between **Bếp** colors and **Classic** from Settings or the account menu. Both use the same font family. The application name is BepShift.
+
+Touch-tablet styles improve form fields, touch targets and scrolling. Phone-only styles at widths up to 600 pixels keep wide tables inside horizontal scroll containers. The tablet punch page has its own responsive layout. Desktop schedules support drag-to-copy; tablet drag support depends on the browser.
+
+## Attendance, tips and payroll
+
+- Scheduled attendance is an **estimate**, not confirmation that an employee actually worked. Review attendance and times before approval. Real clock-ins replace linked unapproved estimates.
+- Payroll uses approved, completed punches and saved tip allocations. It does not send payments, file returns, or remit deductions.
+- Role-point tips use recorded hours in each period multiplied by the shift position's tip points, with the employee's primary position as fallback. The cutoff is configurable; short overlaps under 15 minutes do not qualify for a separate morning/night share.
+- Manual amounts are entered per eligible FOH worker and period. Their sum becomes the pool total. The server checks eligibility and totals before saving; saved tips feed payroll.
+- Payroll rates and formulas live in `server/rates-qc.js` and `server/payroll.js`. Settings control overtime, pay frequency, minimum-wage warnings and vacation treatment. Review these settings and verify estimates with your payroll provider before paying staff. Rates are not automatically updated from government sources.
+
+## Hosting
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for Render and Turso setup. GitHub Pages cannot run this backend.
+
+The supplied `render.yaml` uses a free Render web service and an external Turso **libSQL-compatible** database. Local data is not uploaded automatically. Provider allowances and free-plan behavior can change; check their current terms when deploying.
+
+| Environment variable | Purpose |
+|---|---|
+| `NODE_ENV` | Set to `production` on the hosted service. |
+| `TURSO_DATABASE_URL` | Cloud libSQL database URL. Omit locally to use SQLite. |
+| `TURSO_AUTH_TOKEN` | Private cloud database token. |
+| `ADMIN_EMAIL` | Initial manager email for a new production database. |
+| `ADMIN_PASSWORD` | Initial manager password, at least 16 characters. Only used when the database has no users. |
+| `APP_URL` | Public HTTPS origin; Render's `RENDER_EXTERNAL_URL` is used if omitted. Set this for a custom domain. |
+| `TZ` | Use `America/Toronto` for the restaurant. |
+| `EMPLOYEE_ACCESS` | Enabled by default. Set to `false` for manager-only account access. |
+| `DATA_DIR` | Local database folder; does not control Turso storage. |
+| `PORT` | Server port, defaults to 3100 locally. Render supplies its own port. |
+
+Database credentials belong in the host's private environment settings, never in frontend files or GitHub. `.env` files, `data/` and `node_modules/` are ignored by Git. The app reads environment variables supplied to its process; it does not automatically load a `.env` file.
+
+The service exposes `/healthz`. Passwords use scrypt; sessions use HttpOnly cookies and Secure cookies in production. Manager permissions are checked by the API, production writes validate the request origin, and login/tablet attempts are rate limited. Keep database backups and verify restoration. The database worker has a bounded reusable response buffer and executes queries sequentially.
+
+When a free hosting service sleeps, background attendance sync stops. It resumes for the current day when the app wakes; it does not automatically backfill all earlier missed dates.
 
 ## Project layout
 
-```
+```text
 server/
-  index.js    Express API routes, auth, and permissions
-  db.js       SQLite schema and settings
-  payroll.js  Overtime and tax estimate logic
-  tips.js     Tip pool split
-  seed.js     Demo data
+  index.js             API routes, authentication and permissions
+  db.js                Schema, local/cloud database selection and settings
+  cloud-db.js          Synchronous adapter to the database worker
+  cloud-db-worker.js    libSQL queries and transactions
+  scheduled-punches.js  Scheduled estimates and deletion suppression
+  kiosk.js             Tablet pairing, work IDs and punch endpoints
+  tips.js              Role-point and manual tip allocation
+  payroll.js           Payroll calculations and saved runs
+  rates-qc.js          Quebec/federal payroll rate data
+  seed.js              Local demo records
 public/
-  index.html, css/app.css
-  js/app.js       Shell, navigation, router
-  js/ui.js        API client, formatting, modals, charts
-  js/pages/*.js   One module per screen
+  index.html           Main application
+  kiosk.html           Workplace tablet screen
+  css/app.css          Themes and responsive styles
+  js/app.js            Navigation and account menu
+  js/ui.js             Shared UI helpers
+  js/kiosk.js          Tablet punch flow
+  js/pages/            Feature pages
+render.yaml            Render hosting configuration
+DEPLOYMENT.md          Deployment walkthrough
 ```
-
-Passwords are hashed with scrypt, and sessions are HTTP-only cookies. Every manager-only endpoint is checked on the server. Before exposing this to the internet, put it behind HTTPS and add login rate limiting.
