@@ -22,7 +22,7 @@ export async function api(path, { method = 'GET', body } = {}) {
 // ---- theme ----
 export const THEMES = { bep: "Bếp", classic: "Classic" };
 const CLASSIC_ICON = document.getElementById("favicon")?.getAttribute("href");
-/** Switch between the restaurant (Bếp) look and the original ShiftHub look. */
+/** Switch between the restaurant (Bếp) look and the original BepShift look. */
 export function applyTheme(theme) {
   const t = THEMES[theme] ? theme : "bep";
   document.documentElement.dataset.theme = t;

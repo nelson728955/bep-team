@@ -917,4 +917,4 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 });
 
 const PORT = Number(process.env.PORT) || 3100;
-app.listen(PORT, () => console.log(`ShiftHub running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`BepShift running at http://localhost:${PORT}`));

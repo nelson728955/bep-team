@@ -226,7 +226,7 @@ export const DEFAULT_SETTINGS = {
   pay_frequency: 'biweekly', // weekly | biweekly | semimonthly
   late_grace_min: '5',
   tip_split_time: '16:00', // morning tips = before this time, night tips = after
-  theme: 'bep', // bep (restaurant branding) | classic (original ShiftHub look)
+  theme: 'bep', // bep (restaurant branding) | classic (original BepShift look)
 };
 
 for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {

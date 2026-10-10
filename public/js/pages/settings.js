@@ -17,7 +17,7 @@ export async function render(root, ctx) {
           </label>
           <label class="theme-option">
             <input type="radio" name="theme" value="classic" ${s.theme === 'classic' ? 'checked' : ''}>
-            <div class="preview preview-classic"><div class="bar"><span style="width:14px;height:14px;border-radius:50%;background:#fff"></span><span style="color:#fff;font-size:11px;font-weight:600">ShiftHub</span></div>
+            <div class="preview preview-classic"><div class="bar"><span style="width:14px;height:14px;border-radius:50%;background:#fff"></span><span style="color:#fff;font-size:11px;font-weight:600">BepShift</span></div>
               <div class="body"><span class="blk" style="background:#f26b3a"></span><span class="blk" style="background:#fff;border:1px solid #e2e4ea"></span><span class="blk" style="background:#2aa58e"></span></div></div>
             <div class="meta"><strong>Classic</strong><span class="small muted">The original purple and orange look</span></div>
           </label>

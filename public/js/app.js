@@ -86,9 +86,9 @@ function renderShell() {
   app.innerHTML = `
     <header class="topbar">
       <a class="brand" href="#/dashboard">
-        <span class="brand-mark">SH</span>
+        <span class="brand-mark">BS</span>
         <span class="brand-logo" role="img" aria-label="${esc(ctx.settings.restaurant_name)}"></span>
-        <span class="brand-text">${esc(ctx.settings.restaurant_name)}<small>ShiftHub</small></span>
+        <span class="brand-text">${esc(ctx.settings.restaurant_name)}<small>BepShift</small></span>
       </a>
       <nav class="nav" aria-label="Main">
         ${main.map((k) => `<a href="#/${k}" class="${k === current ? 'active' : ''}">${icon(k)}<span class="lbl">${ROUTES[k].label}</span></a>`).join('')}
@@ -185,7 +185,7 @@ async function route() {
     history.replaceState(null, '', '#/' + key);
   }
   renderShell();
-  document.title = `${ROUTES[key].label} · ShiftHub`;
+  document.title = `${ROUTES[key].label} · BepShift`;
   const view = document.getElementById('view');
   view.innerHTML = '<div class="page"><p class="muted">Loading…</p></div>';
   try {

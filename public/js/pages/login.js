@@ -5,7 +5,7 @@ export function render(root, onSuccess) {
     <div class="login">
       <div class="login-logo" role="img" aria-label="Bếp, Cuisine Vietnamienne"></div>
       <form class="login-card" novalidate>
-        <div class="brand"><span class="brand-mark">SH</span><span>ShiftHub</span></div>
+        <div class="brand"><span class="brand-mark">BS</span><span>BepShift</span></div>
         <h1 style="margin-bottom:4px">Welcome back</h1>
         <p class="muted" style="margin-bottom:20px">Sign in to see your schedule, clock in, and more.</p>
         <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="username" autofocus></label>
