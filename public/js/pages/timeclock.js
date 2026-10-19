@@ -12,10 +12,12 @@ export async function render(root, ctx) {
   const step = daily ? 1 : biweekly ? 14 : 7;
   const align = biweekly ? biweeklyStart : weekStart;
   const end = addDays(state.start, step - 1);
-  const [punches, clock] = await Promise.all([
-    api(`/punches?start=${state.start}&end=${end}${ctx.isManager && state.user ? '&user=' + state.user : ''}`),
+  const department = ['FOH', 'BOH'].includes(state.user) ? state.user : null;
+  const [allPunches, clock] = await Promise.all([
+    api(`/punches?start=${state.start}&end=${end}${ctx.isManager && state.user && !department ? '&user=' + state.user : ''}`),
     api('/clock/status'),
   ]);
+  const punches = department && ctx.isManager ? allPunches.filter(p => ctx.position(ctx.user(p.user_id)?.position_id)?.department === department) : allPunches;
   const M = ctx.isManager;
   const grace = Number(ctx.settings.late_grace_min) || 5;
   const otLimit = Number(ctx.settings.ot_threshold) || 40;
@@ -81,7 +83,7 @@ export async function render(root, ctx) {
             <input type="date" data-date value="${state.start}" aria-label="Choose ${daily ? 'day' : 'a date in the week'}" style="width:auto">
           </div>
           ${M ? `<div class="toolbar">
-            <select data-user style="width:auto;height:30px">${options(ctx.activeUsers().map((u) => [u.id, u.name]), state.user, { blank: 'All employees' })}</select>
+            <select data-user style="width:auto;height:30px">${options([['FOH', 'Front of House'], ['BOH', 'Back of House'], ...ctx.activeUsers().map((u) => [u.id, u.name])], state.user, { blank: 'All employees' })}</select>
             <button class="btn btn-sm" data-add>+ Add punch</button>
             <button class="btn btn-sm btn-teal" data-approve-all ${pendingIds.length ? '' : 'disabled'}>Approve all (${pendingIds.length})</button>
           </div>` : ''}
