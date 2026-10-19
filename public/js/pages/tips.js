@@ -1,3 +1,4 @@
+import { biweeklyStart } from '../pay-period.js';
 import { api, esc, money, hrs, fmtDate, fmtDateLong, fmtTime, fmtRange, weekStart, addDays, today, formValues, toast, emptyState, avatar, confirmDialog } from '../ui.js';
 
 const METHODS = {
@@ -5,7 +6,7 @@ const METHODS = {
   manual: ['Manual amounts', 'Enter the exact tips for each FOH employee who worked.'],
 };
 const PERIOD_ORDER = { morning: 0, night: 1, all: 2 };
-const state = { days: 14, mode: 'split', employeeWeek: null }; // mode: split (morning + night) | day (whole day)
+const state = { days: 14, mode: 'split', employeePeriod: 'range', employeeWeek: null }; // mode: split (morning + night) | day (whole day)
 
 const periodPill = (p) => (p === 'morning' ? '<span class="pill pill-morning">Morning</span>'
   : p === 'night' ? '<span class="pill pill-night">Night</span>' : '<span class="pill pill-muted">Whole day</span>');
@@ -74,10 +75,12 @@ export async function render(root, ctx) {
   const drawEmployeeTips = async () => {
     const request = ++panelRequest;
     const selected = state.employeeWeek;
+    const periodDays = state.employeePeriod === 'biweek' ? 14 : 7;
+    const alignPeriod = state.employeePeriod === 'biweek' ? biweeklyStart : weekStart;
     let selectedPools = pools;
     if (selected) {
-      panel.innerHTML = '<div class="card-body">Loading weekly tips…</div>';
-      try { selectedPools = await api('/tips?start=' + selected + '&end=' + addDays(selected, 6)); }
+      panel.innerHTML = '<div class="card-body">Loading tips…</div>';
+      try { selectedPools = await api('/tips?start=' + selected + '&end=' + addDays(selected, periodDays - 1)); }
       catch (e) { if (request === panelRequest) panel.innerHTML = '<div class="card-body">' + esc(e.message) + '<button class="btn" data-retry>Retry</button></div>'; panel.querySelector('[data-retry]')?.addEventListener('click', drawEmployeeTips); return; }
     }
     if (request !== panelRequest || !root.contains(panel)) return;
@@ -92,23 +95,24 @@ export async function render(root, ctx) {
       <div class="card-body" style="padding-bottom:0">
         <label class="field"><span>View tips for</span><select data-employee-period aria-label="Employee tips period">
           <option value="range" ${!selected ? 'selected' : ''}>Last ${state.days} days</option>
-          <option value="week" ${selected ? 'selected' : ''}>Week by week</option>
+          <option value="week" ${state.employeePeriod === 'week' ? 'selected' : ''}>Week by week</option>
+          <option value="biweek" ${state.employeePeriod === 'biweek' ? 'selected' : ''}>Biweekly</option>
         </select></label>
         ${selected ? `<div class="toolbar" style="flex-wrap:wrap;margin-bottom:12px">
-          <button class="btn btn-sm" data-week-step="-7" aria-label="Previous week">‹</button>
-          <span class="small" style="flex:1;text-align:center">${fmtRange(selected, addDays(selected, 6))}</span>
-          <button class="btn btn-sm" data-week-step="7" aria-label="Next week" ${selected >= weekStart(today()) ? 'disabled' : ''}>›</button>
-          <label class="field" style="width:100%;margin:0"><span>Choose a date in the week</span><input data-week-date type="date" value="${selected}" max="${today()}"></label>
+          <button class="btn btn-sm" data-week-step="-${periodDays}" aria-label="Previous week">‹</button>
+          <span class="small" style="flex:1;text-align:center">${fmtRange(selected, addDays(selected, periodDays - 1))}</span>
+          <button class="btn btn-sm" data-week-step="${periodDays}" aria-label="Next week" ${selected >= alignPeriod(today()) ? 'disabled' : ''}>›</button>
+          <label class="field" style="width:100%;margin:0"><span>Choose a date in the period</span><input data-week-date type="date" value="${selected}" max="${today()}"></label>
         </div>` : ''}
       </div>
       <ul class="list">${[...byUser.entries()].sort((a,b)=>b[1].amount-a[1].amount).map(([uid,v])=>`<li>
         <div class="person" style="flex:1">${avatar(ctx.userName(uid),ctx.userColor(uid),'sm')}<div class="meta"><div class="name">${esc(ctx.userName(uid))}</div>
         ${v.morning || v.night ? `<div class="role">Morning ${money(v.morning)} · Night ${money(v.night)}</div>` : ''}
         <div class="role">${hrs(v.hours)} hrs · ${money(v.hours ? v.amount/v.hours : 0)}/hr</div></div></div>
-        <strong class="num">${money(v.amount)}</strong></li>`).join('') || `<li>${emptyState(selected ? 'No tips for this week' : 'No tips yet')}</li>`}</ul>`;
-    panel.querySelector('[data-employee-period]').addEventListener('change', e => { state.employeeWeek = e.target.value === 'week' ? weekStart(today()) : null; drawEmployeeTips(); });
+        <strong class="num">${money(v.amount)}</strong></li>`).join('') || `<li>${emptyState(selected ? 'No tips for this period' : 'No tips yet')}</li>`}</ul>`;
+    panel.querySelector('[data-employee-period]').addEventListener('change', e => { state.employeePeriod = e.target.value; state.employeeWeek = e.target.value === 'biweek' ? biweeklyStart(today()) : e.target.value === 'week' ? weekStart(today()) : null; drawEmployeeTips(); });
     panel.querySelectorAll('[data-week-step]').forEach(button => button.addEventListener('click', () => { state.employeeWeek = addDays(state.employeeWeek, Number(button.dataset.weekStep)); drawEmployeeTips(); }));
-    panel.querySelector('[data-week-date]')?.addEventListener('change', e => { if (e.target.value && e.target.value <= today()) { state.employeeWeek = weekStart(e.target.value); drawEmployeeTips(); } });
+    panel.querySelector('[data-week-date]')?.addEventListener('change', e => { if (e.target.value && e.target.value <= today()) { state.employeeWeek = alignPeriod(e.target.value); drawEmployeeTips(); } });
   };
   drawEmployeeTips();
 
@@ -138,10 +142,14 @@ export async function render(root, ctx) {
           if (!groups.has(key)) groups.set(key, { position, name: worker.position_name || 'No position', workers: [] });
           groups.get(key).workers.push(worker);
         });
-        const rank = group => /manager/i.test(group.name) ? 0 : group.position?.department === 'FOH' ? 1 : group.position?.department === 'BOH' ? 2 : 3;
+        const rank = group => group.position?.department === 'FOH' ? 0 : group.position?.department === 'BOH' ? 1 : 2;
+        let lastDepartment = null;
         return [...groups.values()].sort((a,b) => rank(a)-rank(b) || a.name.localeCompare(b.name)).map(group => {
+          const department = group.position?.department || 'Other';
+          const departmentHeading = department !== lastDepartment ? `<h2 class="tip-department-heading">${department === 'FOH' ? 'Front of House' : department === 'BOH' ? 'Back of House' : 'Other staff'}</h2>` : '';
+          lastDepartment = department;
           const color = /^#[0-9a-f]{3,8}$/i.test(group.position?.color || '') ? group.position.color : '#7b8190';
-          return `<section class="tip-role-group" style="--role-color:${color}" aria-label="${esc(group.name)}"><h3><span class="tip-role-dot" aria-hidden="true"></span>${esc(group.name)} <span class="muted small">· ${group.workers.length} ${group.workers.length === 1 ? 'person' : 'people'}</span></h3>${group.workers.sort((a,b)=>a.name.localeCompare(b.name)).map(worker => `<label class="field"><span>${esc(worker.name)} · ${hrs(worker.hours)} hrs</span><input type="number" min="0" step="0.01" value="0.00" data-manual-user="${worker.user_id}" data-period="${period}" aria-label="${esc(worker.name)} tips"></label>`).join('')}</section>`;
+          return `${departmentHeading}<section class="tip-role-group" style="--role-color:${color}" aria-label="${esc(group.name)}"><h3><span class="tip-role-dot" aria-hidden="true"></span>${esc(group.name)} <span class="muted small">· ${group.workers.length} ${group.workers.length === 1 ? 'person' : 'people'}</span></h3>${group.workers.sort((a,b)=>a.name.localeCompare(b.name)).map(worker => `<label class="field"><span>${esc(worker.name)} · ${hrs(worker.hours)} hrs</span><input type="number" min="0" step="0.01" value="0.00" data-manual-user="${worker.user_id}" data-period="${period}" aria-label="${esc(worker.name)} tips"></label>`).join('')}</section>`;
         }).join('') || '<p class="muted">No hours recorded for this date.</p>';
       }).join('');
     } catch(error) { if(version === loadVersion) manualPanel.innerHTML = `<div class="alert">${esc(error.message)}</div>`; }

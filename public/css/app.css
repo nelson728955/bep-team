@@ -645,3 +645,4 @@ dialog.modal footer > div { display: flex; gap: 8px; }
 .employee-hours-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; background: transparent; text-align: left; color: var(--text); padding: 4px 0; min-height: 36px; cursor: pointer; font: inherit; }
 .employee-hours-link:hover { color: var(--accent-text); }
 .employee-hours-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.tip-department-heading { font-size: 18px; margin: 22px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--border-strong); }
