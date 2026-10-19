@@ -55,13 +55,17 @@ export function computeTipSplit(date, amount, method, positionIds, period = 'all
       position_id: r.position_id,
       tip_points: r.tip_points ?? 1,
       hours: 0,
+      morning_hours: 0,
+      night_hours: 0,
     };
     cur.hours += punchHoursInWindow(r, from, to);
+    cur.morning_hours += punchHoursInWindow(r, -Infinity, split);
+    cur.night_hours += punchHoursInWindow(r, split, Infinity);
     byUser.set(r.user_id, cur);
   }
 
   const minHours = period === 'all' ? 0.01 : MIN_PERIOD_HOURS;
-  const people = [...byUser.values()].map((p) => ({ ...p, hours: round2(p.hours) })).filter((p) => p.hours >= minHours);
+  const people = [...byUser.values()].map((p) => ({ ...p, morning_eligible: p.morning_hours >= 2, night_eligible: p.night_hours >= 2, morning_hours: round2(p.morning_hours), night_hours: round2(p.night_hours), hours: round2(p.hours) })).filter((p) => p.hours >= minHours);
   for (const p of people) {
     p.weight = method === 'equal' ? 1 : method === 'points' ? p.hours * p.tip_points : p.hours;
   }

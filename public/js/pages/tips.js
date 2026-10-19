@@ -47,7 +47,7 @@ export async function render(root, ctx) {
           <div class="card-body">
             <label class="field"><span>Date worked</span><input type="date" name="date" value="${today()}" max="${today()}" required></label>
             <input type="hidden" name="method" value="manual">
-            <p class="small muted">Enter each person's tips for this date. Everyone with recorded hours is included.</p>
+            <p class="small muted">Enter each person's tips for this date. Everyone with recorded hours is included.</p><p class="small muted"><span class="tip-period-dot tip-period-am" aria-hidden="true"></span> 2+ hours before cutoff · <span class="tip-period-dot tip-period-pm" aria-hidden="true"></span> 2+ hours after ${fmtTime(cutoff)}</p>
             <div data-manual></div>
             <div class="toolbar"><button type="button" class="btn" data-preview>Preview split</button><button class="btn btn-primary" data-save disabled>Distribute tips</button></div>
             <div data-result style="margin-top:14px"></div>
@@ -149,7 +149,7 @@ export async function render(root, ctx) {
           const departmentHeading = department !== lastDepartment ? `<h2 class="tip-department-heading">${department === 'FOH' ? 'Front of House' : department === 'BOH' ? 'Back of House' : 'Other staff'}</h2>` : '';
           lastDepartment = department;
           const color = /^#[0-9a-f]{3,8}$/i.test(group.position?.color || '') ? group.position.color : '#7b8190';
-          return `${departmentHeading}<section class="tip-role-group" style="--role-color:${color}" aria-label="${esc(group.name)}"><h3><span class="tip-role-dot" aria-hidden="true"></span>${esc(group.name)} <span class="muted small">· ${group.workers.length} ${group.workers.length === 1 ? 'person' : 'people'}</span></h3>${group.workers.sort((a,b)=>a.name.localeCompare(b.name)).map(worker => `<label class="field"><span>${esc(worker.name)} · ${hrs(worker.hours)} hrs</span><input type="number" min="0" step="0.01" value="0.00" data-manual-user="${worker.user_id}" data-period="${period}" aria-label="${esc(worker.name)} tips"></label>`).join('')}</section>`;
+          return `${departmentHeading}<section class="tip-role-group" style="--role-color:${color}" aria-label="${esc(group.name)}"><h3><span class="tip-role-dot" aria-hidden="true"></span>${esc(group.name)} <span class="muted small">· ${group.workers.length} ${group.workers.length === 1 ? 'person' : 'people'}</span></h3>${group.workers.sort((a,b)=>a.name.localeCompare(b.name)).map(worker => `<label class="field"><span>${esc(worker.name)} <span class="tip-period-dots">${worker.morning_eligible ? '<span class="tip-period-dot tip-period-am" role="img" aria-label="At least 2 hours before cutoff" title="At least 2 hours before cutoff"></span>' : ''}${worker.night_eligible ? '<span class="tip-period-dot tip-period-pm" role="img" aria-label="At least 2 hours after cutoff" title="At least 2 hours after cutoff"></span>' : ''}</span> · ${hrs(worker.hours)} hrs</span><input type="number" min="0" step="0.01" value="0.00" data-manual-user="${worker.user_id}" data-period="${period}" aria-label="${esc(worker.name)} tips"></label>`).join('')}</section>`;
         }).join('') || '<p class="muted">No hours recorded for this date.</p>';
       }).join('');
     } catch(error) { if(version === loadVersion) manualPanel.innerHTML = `<div class="alert">${esc(error.message)}</div>`; }

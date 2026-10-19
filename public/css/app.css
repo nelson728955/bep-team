@@ -647,3 +647,7 @@ dialog.modal footer > div { display: flex; gap: 8px; }
 .employee-hours-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .tip-department-heading { font-size: 18px; margin: 22px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--border-strong); }
 .clock-department-heading { margin: 0; padding: 14px; font-size: 16px; font-weight: 700; background: var(--surface-2); border-bottom: 1px solid var(--border-strong); }
+.tip-period-dots { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; }
+.tip-period-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: middle; flex-shrink: 0; }
+.tip-period-am { background: #f4bc15; box-shadow: 0 0 0 1px #9a700033; }
+.tip-period-pm { background: #8b42b8; }
