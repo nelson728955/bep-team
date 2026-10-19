@@ -45,7 +45,9 @@ export function mountKioskPublic(app) {
         if(open){db.prepare('UPDATE punches SET clock_out=?,break_min=break_min+?,break_start=NULL WHERE id=?').run(now,open.break_start?(now-open.break_start)/60000:0,open.id);return 'out';}
         const shifts=db.prepare('SELECT * FROM shifts WHERE user_id=? AND date=? AND published=1 ORDER BY start').all(user.id,today());
         const shift=shifts.sort((a,b)=>Math.abs(msAt(a.date,a.start)-now)-Math.abs(msAt(b.date,b.start)-now))[0];
-        if(shift) db.prepare('DELETE FROM punches WHERE shift_id=? AND estimated=1 AND approved=0').run(shift.id);
+        // Tablet attendance replaces the estimate, even if it was approved.
+        // Keep other employees' entries and this employee's other shifts intact.
+        if(shift) db.prepare('DELETE FROM punches WHERE shift_id=? AND user_id=? AND estimated=1').run(shift.id,user.id);
         db.prepare('INSERT INTO punches(user_id,shift_id,clock_in) VALUES (?,?,?)').run(user.id,shift?.id ?? null,now);
         return 'in';
       });
