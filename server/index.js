@@ -605,7 +605,7 @@ function tipInput(b) {
   const method = ['hours', 'points', 'equal', 'manual'].includes(b.method) ? b.method : 'points';
   const period = TIP_PERIODS.includes(b.period) ? b.period : 'all';
   const positionIds = (b.position_ids || []).map(Number).filter(Boolean);
-  if (!positionIds.length) bad('Pick at least one position to include');
+  if (!positionIds.length && method !== 'manual') bad('Pick at least one position to include');
   return { date, amount, method, period, positionIds, allocations: Array.isArray(b.allocations) ? b.allocations : [], label: str(b.label, 80) || PERIOD_LABEL[period] };
 }
 function tipSplit(t) {
@@ -618,7 +618,7 @@ app.post('/api/tips/workers', managerOnly, route((req) => {
   const period = TIP_PERIODS.includes(req.body.period) ? req.body.period : 'all';
   syncScheduledPunches();
   const ids = db.prepare("SELECT id FROM positions WHERE department='FOH'").all().map(p => p.id);
-  return computeTipSplit(date,1,'hours',ids,period);
+  return computeTipSplit(date,1,'hours',null,period);
 }));
 app.post('/api/tips/preview', managerOnly, route((req) => {
   const t = tipInput(req.body);

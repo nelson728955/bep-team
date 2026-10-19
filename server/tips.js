@@ -4,13 +4,12 @@ import { addDays, msAt, punchHoursInWindow, round2 } from './util.js';
 export const TIP_PERIODS = ['morning', 'night', 'all'];
 
 export function manualTipSplit(date, amount, positionIds, period, allocations) {
-  const foh = db.prepare("SELECT id FROM positions WHERE department='FOH'").all().map(p => p.id);
-  const eligible = computeTipSplit(date, 1, 'hours', positionIds.filter(id => foh.includes(id)), period);
+  const eligible = computeTipSplit(date, 1, 'hours', null, period);
   const seen = new Set();
   const result = allocations.map(a => {
     const person = eligible.find(p => p.user_id === Number(a.user_id));
     const cents = Math.round(Number(a.amount) * 100);
-    if (!person || seen.has(person.user_id) || !Number.isFinite(Number(a.amount)) || Number(a.amount) < 0 || Math.abs(Number(a.amount) * 100 - cents) > 0.00001) throw new Error('Enter valid amounts for eligible FOH workers only.');
+    if (!person || seen.has(person.user_id) || !Number.isFinite(Number(a.amount)) || Number(a.amount) < 0 || Math.abs(Number(a.amount) * 100 - cents) > 0.00001) throw new Error('Enter valid amounts for workers with recorded hours only.');
     seen.add(person.user_id);
     return { ...person, amount: cents / 100, weight: person.hours };
   });
@@ -31,7 +30,7 @@ const MIN_PERIOD_HOURS = 0.25;
  *  - equal:  everyone who worked in the period gets the same share
  */
 export function computeTipSplit(date, amount, method, positionIds, period = 'all', splitTime = getSettings().tip_split_time || '16:00') {
-  const ids = new Set(positionIds.map(Number));
+  const ids = positionIds == null ? null : new Set(positionIds.map(Number));
   const dayStart = msAt(date, '00:00');
   const split = msAt(date, splitTime);
   const [from, to] = period === 'morning' ? [-Infinity, split] : period === 'night' ? [split, Infinity] : [-Infinity, Infinity];
@@ -48,7 +47,7 @@ export function computeTipSplit(date, amount, method, positionIds, period = 'all
 
   const byUser = new Map();
   for (const r of rows) {
-    if (!ids.has(r.position_id)) continue;
+    if (ids && !ids.has(r.position_id)) continue;
     const cur = byUser.get(r.user_id) || {
       user_id: r.user_id,
       name: r.name,

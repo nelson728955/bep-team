@@ -1,4 +1,3 @@
-import { openMonerisImport } from './tips-import.js';
 import { api, esc, money, hrs, fmtDate, fmtDateLong, fmtTime, fmtRange, weekStart, addDays, today, formValues, toast, emptyState, avatar, confirmDialog } from '../ui.js';
 
 const METHODS = {
@@ -32,7 +31,7 @@ export async function render(root, ctx) {
 
   const t = periodTotals(pools);
   const tipPositions = ctx.positions.filter((p) => p.tip_points > 0);
-  const split = state.mode === 'split';
+  const split = false;
 
   root.innerHTML = `
   <div class="page">
@@ -43,26 +42,12 @@ export async function render(root, ctx) {
     <div class="grid grid-main">
       <div class="stack">
         <form class="card" data-pool novalidate>
-          <div class="card-head"><h2>Distribute tips</h2>
-            <div class="toolbar"><button type="button" class="btn btn-sm" data-import>Import Moneris report</button>
-            <div class="seg"><button type="button" data-mode="split" class="${split ? 'on' : ''}">Morning + Night</button><button type="button" data-mode="day" class="${split ? '' : 'on'}">Whole day</button></div></div>
-          </div>
+          <div class="card-head"><h2>Distribute tips</h2></div>
           <div class="card-body">
-            <div class="row">
-              <label class="field"><span>Date worked</span><input type="date" name="date" value="${today()}" max="${today()}" required></label>
-              ${split ? `
-              <label class="field"><span>Morning tips ($)</span><input type="number" name="morning" min="0" step="0.01" placeholder="0.00"><span class="hint">Opening until ${fmtTime(cutoff)}</span></label>
-              <label class="field"><span>Night tips ($)</span><input type="number" name="night" min="0" step="0.01" placeholder="0.00"><span class="hint">${fmtTime(cutoff)} until close</span></label>`
-              : '<label class="field"><span>Tips for the day ($)</span><input type="number" name="all" min="0" step="0.01" placeholder="0.00"><span class="hint">Everyone who worked that day</span></label>'}
-            </div>
-            ${split ? `<p class="small muted" style="margin-top:-4px">People who work a double get a share of both pots, based on their hours before and after ${fmtTime(cutoff)}. <a href="#/settings">Change the cutoff time</a></p>` : ''}
-            <div class="field"><span>How to split</span>
-              ${Object.entries(METHODS).map(([k, [l, hint]], i) => `<label class="check" style="display:flex;align-items:flex-start"><input type="radio" name="method" value="${k}" ${i === 0 ? 'checked' : ''}><span><strong>${l}</strong><br><span class="small muted">${hint}</span></span></label>`).join('')}
-              <div data-manual hidden></div>
-            </div>
-            <div class="field"><span>Positions in the pool</span>
-              <div>${ctx.positions.map((p) => `<label class="check"><input type="checkbox" name="position_ids" data-multi value="${p.id}" ${tipPositions.includes(p) ? 'checked' : ''}> ${esc(p.name)} <span class="muted small">(${p.tip_points} pts)</span></label>`).join('')}</div>
-            </div>
+            <label class="field"><span>Date worked</span><input type="date" name="date" value="${today()}" max="${today()}" required></label>
+            <input type="hidden" name="method" value="manual">
+            <p class="small muted">Enter each person's tips for this date. Everyone with recorded hours is included.</p>
+            <div data-manual></div>
             <div class="toolbar"><button type="button" class="btn" data-preview>Preview split</button><button class="btn btn-primary" data-save disabled>Distribute tips</button></div>
             <div data-result style="margin-top:14px"></div>
           </div>
@@ -140,17 +125,12 @@ export async function render(root, ctx) {
   async function loadManual() {
     const version = ++loadVersion;
     const v = formValues(form);
-    manualPanel.hidden = v.method !== 'manual';
-    periods.forEach(period => { form.elements[period].closest('label').hidden = !manualPanel.hidden; });
-    form.querySelector('[name="position_ids"]')?.closest('.field')?.toggleAttribute('hidden', !manualPanel.hidden);
-    root.querySelector('[data-import]').disabled = !manualPanel.hidden;
-    if (manualPanel.hidden) return;
-    manualPanel.innerHTML = '<p>Loading FOH workers…</p>';
+    manualPanel.innerHTML = '<p>Loading workers…</p>';
     saveBtn.disabled = true;
     try {
       const workers = await Promise.all(periods.map(period => api('/tips/workers', {method:'POST',body:{date:v.date,period}})));
       if(version !== loadVersion) return;
-      manualPanel.innerHTML = periods.map((period,i) => `<h3>${period === 'all' ? 'Whole day' : period === 'morning' ? 'Morning' : 'Night'}</h3>${workers[i].map(worker => `<label class="field"><span>${esc(worker.name)} · ${hrs(worker.hours)} hrs</span><input type="number" min="0" step="0.01" value="0.00" data-manual-user="${worker.user_id}" data-period="${period}" aria-label="${esc(worker.name)} ${period} tips"></label>`).join('') || '<p class="muted">No FOH hours recorded for this period.</p>'}`).join('');
+      manualPanel.innerHTML = periods.map((period,i) => `${workers[i].map(worker => `<label class="field"><span>${esc(worker.name)} · ${hrs(worker.hours)} hrs</span><input type="number" min="0" step="0.01" value="0.00" data-manual-user="${worker.user_id}" data-period="${period}" aria-label="${esc(worker.name)} ${period} tips"></label>`).join('') || '<p class="muted">No hours recorded for this date.</p>'}`).join('');
     } catch(error) { if(version === loadVersion) manualPanel.innerHTML = `<div class="alert">${esc(error.message)}</div>`; }
   }
   form.addEventListener('change', e => { if (e.target.name === 'date' || e.target.name === 'method') loadManual(); });
@@ -162,27 +142,14 @@ export async function render(root, ctx) {
     const list = periods.map(p => {
       const allocations = [...manualPanel.querySelectorAll(`[data-period="${p}"]`)].map(input => ({user_id:Number(input.dataset.manualUser),amount:Number(input.value)}));
       const manual = v.method === 'manual';
-      return {date:v.date,period:p,amount:manual ? Math.round(allocations.reduce((s,a)=>s+a.amount,0)*100)/100 : Number(v[p]),method:v.method,position_ids:manual ? ctx.positions.filter(p=>p.department==='FOH').map(p=>p.id) : v.position_ids,allocations};
+      return {date:v.date,period:p,amount:manual ? Math.round(allocations.reduce((s,a)=>s+a.amount,0)*100)/100 : Number(v[p]),method:v.method,position_ids:manual ? ctx.positions.map(p=>p.id) : v.position_ids,allocations};
     }).filter(p=>p.amount>0);
     if (!list.length) throw new Error(split ? 'Enter morning tips, night tips, or both' : 'Enter the tips for the day');
     return { list, method: v.method };
   };
 
   form.addEventListener('input', () => { saveBtn.disabled = true; });
-  // The Moneris import uses the split method and positions currently chosen on this form.
-  root.querySelector('[data-import]').addEventListener('click', () => openMonerisImport(ctx, {
-    getSplit: () => {
-      const v = formValues(form);
-      const ids = (v.position_ids || []).map(Number);
-      return {
-        method: v.method,
-        position_ids: ids,
-        methodLabel: METHODS[v.method]?.[0] || '',
-        positionNames: ctx.positions.filter((p) => ids.includes(p.id)).map((p) => p.name).join(', '),
-      };
-    },
-    onDone: rerender,
-  }));
+  await loadManual();
   form.querySelector('[data-preview]').addEventListener('click', async () => {
     try {
       const { list, method } = buildPools();
