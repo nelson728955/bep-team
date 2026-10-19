@@ -130,7 +130,20 @@ export async function render(root, ctx) {
     try {
       const workers = await Promise.all(periods.map(period => api('/tips/workers', {method:'POST',body:{date:v.date,period}})));
       if(version !== loadVersion) return;
-      manualPanel.innerHTML = periods.map((period,i) => `${workers[i].map(worker => `<label class="field"><span>${esc(worker.name)} · ${hrs(worker.hours)} hrs</span><input type="number" min="0" step="0.01" value="0.00" data-manual-user="${worker.user_id}" data-period="${period}" aria-label="${esc(worker.name)} ${period} tips"></label>`).join('') || '<p class="muted">No hours recorded for this date.</p>'}`).join('');
+      manualPanel.innerHTML = periods.map((period,i) => {
+        const groups = new Map();
+        workers[i].forEach(worker => {
+          const position = ctx.position(worker.position_id);
+          const key = worker.position_id ?? 'none';
+          if (!groups.has(key)) groups.set(key, { position, name: worker.position_name || 'No position', workers: [] });
+          groups.get(key).workers.push(worker);
+        });
+        const rank = group => /manager/i.test(group.name) ? 0 : group.position?.department === 'FOH' ? 1 : group.position?.department === 'BOH' ? 2 : 3;
+        return [...groups.values()].sort((a,b) => rank(a)-rank(b) || a.name.localeCompare(b.name)).map(group => {
+          const color = /^#[0-9a-f]{3,8}$/i.test(group.position?.color || '') ? group.position.color : '#7b8190';
+          return `<section class="tip-role-group" style="--role-color:${color}" aria-label="${esc(group.name)}"><h3><span class="tip-role-dot" aria-hidden="true"></span>${esc(group.name)} <span class="muted small">· ${group.workers.length} ${group.workers.length === 1 ? 'person' : 'people'}</span></h3>${group.workers.sort((a,b)=>a.name.localeCompare(b.name)).map(worker => `<label class="field"><span>${esc(worker.name)} · ${hrs(worker.hours)} hrs</span><input type="number" min="0" step="0.01" value="0.00" data-manual-user="${worker.user_id}" data-period="${period}" aria-label="${esc(worker.name)} tips"></label>`).join('')}</section>`;
+        }).join('') || '<p class="muted">No hours recorded for this date.</p>';
+      }).join('');
     } catch(error) { if(version === loadVersion) manualPanel.innerHTML = `<div class="alert">${esc(error.message)}</div>`; }
   }
   form.addEventListener('change', e => { if (e.target.name === 'date' || e.target.name === 'method') loadManual(); });

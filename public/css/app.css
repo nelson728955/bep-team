@@ -634,3 +634,8 @@ dialog.modal footer > div { display: flex; gap: 8px; }
   dialog.modal .modal-body { padding: 14px 12px 6px; }
   dialog.modal footer { padding-left: 12px; padding-right: 12px; }
 }
+
+.tip-role-group { border: 1px solid var(--border); border-left: 4px solid var(--role-color); border-radius: 10px; padding: 14px; margin-bottom: 16px; background: color-mix(in srgb, var(--role-color) 5%, var(--surface)); }
+.tip-role-group h3 { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; font-size: 16px; }
+.tip-role-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--role-color); flex-shrink: 0; }
+.tip-role-group .field:last-child { margin-bottom: 0; }

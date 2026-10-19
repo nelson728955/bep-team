@@ -52,6 +52,7 @@ export function computeTipSplit(date, amount, method, positionIds, period = 'all
       user_id: r.user_id,
       name: r.name,
       position_name: r.position_name,
+      position_id: r.position_id,
       tip_points: r.tip_points ?? 1,
       hours: 0,
     };
