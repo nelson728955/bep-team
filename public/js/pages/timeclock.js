@@ -40,6 +40,19 @@ export async function render(root, ctx) {
   const byUser = new Map();
   for (const p of punches) byUser.set(p.user_id, (byUser.get(p.user_id) || 0) + p.hours);
   const pendingIds = punches.filter((p) => !p.approved && p.clock_out).map((p) => p.id);
+  const hourGroups = new Map();
+  for (const [uid, hours] of byUser) {
+    const user = ctx.user(uid);
+    const position = ctx.position(user?.position_id);
+    const key = user?.role === 'manager' ? 'manager' : position?.id ?? 'none';
+    if (!hourGroups.has(key)) hourGroups.set(key, { name: key === 'manager' ? 'Managers' : position?.name || 'No position', position, manager: key === 'manager', people: [] });
+    hourGroups.get(key).people.push({ uid, hours });
+  }
+  const groupRank = g => g.manager ? 0 : g.position?.department === 'FOH' ? 1 : g.position?.department === 'BOH' ? 2 : 3;
+  const groupedHours = [...hourGroups.values()].sort((a,b) => groupRank(a)-groupRank(b) || a.name.localeCompare(b.name)).map(group => {
+    const color = /^#[0-9a-f]{3,8}$/i.test(group.position?.color || '') ? group.position.color : '#7b8190';
+    return `<section class="clock-role-group" style="--role-color:${color}"><h3><span class="tip-role-dot" aria-hidden="true"></span>${esc(group.name)}</h3><ul class="list">${group.people.sort((a,b)=>ctx.userName(a.uid).localeCompare(ctx.userName(b.uid))).map(({uid,hours:h})=>`<li><button class="employee-hours-link" data-history="${uid}" aria-label="View ${esc(ctx.userName(uid))} punch history"><span>${esc(ctx.userName(uid))}${!daily && h > otLimit ? ' <span class="pill pill-bad">Overtime</span>' : ''}</span><span class="num"><strong>${hrs(h)}</strong> hrs${M ? ` <span class="muted">· ${money0(h * (ctx.user(uid)?.hourly_rate || 0))}</span>` : ''}</span></button></li>`).join('')}</ul></section>`;
+  }).join('');
 
   root.innerHTML = `
   <div class="page">
@@ -92,13 +105,12 @@ export async function render(root, ctx) {
         </div>` : ''}
         <div class="card">
           <div class="card-head"><h2>${M ? (daily ? 'Hours this day' : 'Hours this week') : (daily ? 'My day' : 'My week')}</h2></div>
-          <ul class="list">${[...byUser.entries()].sort((a, b) => b[1] - a[1]).map(([uid, h]) => `<li>
-            <div style="flex:1">${esc(ctx.userName(uid))}${!daily && h > otLimit ? ' <span class="pill pill-bad">Overtime</span>' : ''}</div>
-            <span class="num"><strong>${hrs(h)}</strong> hrs${M ? ` <span class="muted">· ${money0(h * (ctx.user(uid)?.hourly_rate || 0))}</span>` : ''}</span></li>`).join('') || `<li>${emptyState('No hours yet')}</li>`}</ul>
+          ${groupedHours || emptyState('No hours yet')}
         </div>
       </div>
     </div>
   </div>`;
+  root.querySelectorAll('[data-history]').forEach(button => button.addEventListener('click', () => employeeHistory(ctx, Number(button.dataset.history), state.start)));
 
   root.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => {
     const previous = state.view;
@@ -187,4 +199,26 @@ function punchModal(ctx, p, done) {
       done();
     },
   });
+}
+
+async function employeeHistory(ctx, userId, selectedDate) {
+  let start = weekStart(selectedDate), length = 7, requestId = 0;
+  const m = modal({title: `${ctx.userName(userId)} · Punch history`, wide: true, body: '<div data-history-content></div>'});
+  const panel = m.form.querySelector('[data-history-content]');
+  const draw = async () => {
+    const version = ++requestId;
+    const end = addDays(start, length - 1);
+    panel.innerHTML = `<div class="toolbar" style="margin-bottom:16px"><select data-length aria-label="Period length"><option value="7" ${length === 7 ? 'selected' : ''}>Weekly</option><option value="14" ${length === 14 ? 'selected' : ''}>Biweekly (2 weeks)</option></select><button type="button" class="btn" data-step="-${length}" aria-label="Previous period">‹</button><strong>${fmtRange(start,end)}</strong><button type="button" class="btn" data-step="${length}" aria-label="Next period">›</button><button type="button" class="btn" data-current>This week</button><label class="field" style="margin:0"><span>Week starting</span><input type="date" data-history-date value="${start}"></label></div><div data-history-rows role="status">Loading punches…</div>`;
+    panel.querySelector('[data-length]').onchange = e => { length = Number(e.target.value); draw(); };
+    panel.querySelectorAll('[data-step]').forEach(button => button.onclick = () => { start = addDays(start,Number(button.dataset.step)); draw(); });
+    panel.querySelector('[data-current]').onclick = () => { start = weekStart(today()); draw(); };
+    panel.querySelector('[data-history-date]').onchange = e => { if(e.target.value) {start = weekStart(e.target.value);draw();} };
+    try {
+      const rows = await api(`/punches?start=${start}&end=${end}&user=${userId}`);
+      if(version !== requestId || !m.dlg.isConnected) return;
+      const hours = rows.reduce((sum,p)=>sum+p.hours,0);
+      panel.querySelector('[data-history-rows]').innerHTML = `<p><strong>${hrs(hours)} hours</strong> · ${rows.length} punches · ${hrs(rows.filter(p=>p.approved).reduce((sum,p)=>sum+p.hours,0))} approved hours</p><div class="table-wrap"><table class="table"><thead><tr><th>Date</th><th>In</th><th>Out</th><th>Break</th><th>Hours</th><th>Status</th></tr></thead><tbody>${rows.map(p=>`<tr><td class="nowrap">${fmtDate(p.date,{weekday:'short',month:'short',day:'numeric'})}</td><td class="nowrap">${fmtClock(p.clock_in)}</td><td class="nowrap">${p.clock_out ? fmtClock(p.clock_out) : 'Still clocked in'}</td><td>${Math.round(p.break_min)}m</td><td>${hrs(p.hours)}</td><td>${p.estimated ? '<span class="pill pill-info">Estimate</span> ' : ''}${p.approved?'Approved':p.clock_out?'Pending':'Open'}</td></tr>`).join('') || '<tr><td colspan="6">No punches in this period.</td></tr>'}</tbody></table></div>`;
+    } catch(error) { if(version === requestId && m.dlg.isConnected) panel.querySelector('[data-history-rows]').textContent=error.message; }
+  };
+  await draw();
 }

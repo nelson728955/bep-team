@@ -639,3 +639,9 @@ dialog.modal footer > div { display: flex; gap: 8px; }
 .tip-role-group h3 { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; font-size: 16px; }
 .tip-role-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--role-color); flex-shrink: 0; }
 .tip-role-group .field:last-child { margin-bottom: 0; }
+
+.clock-role-group { border-left: 4px solid var(--role-color); }
+.clock-role-group h3 { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 0; padding: 12px 14px; background: color-mix(in srgb, var(--role-color) 9%, var(--surface)); border-bottom: 1px solid var(--border); }
+.employee-hours-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; background: transparent; text-align: left; color: var(--text); padding: 4px 0; min-height: 36px; cursor: pointer; font: inherit; }
+.employee-hours-link:hover { color: var(--accent-text); }
+.employee-hours-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
