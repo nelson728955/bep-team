@@ -1,3 +1,4 @@
+import { biweeklyStart } from '../pay-period.js';
 import {
   api, esc, hrs, money0, fmtTime, fmtClock, fmtDate, fmtRange, fmtDateLong, addDays, today, weekStart, hmOf,
   modal, options, toast, avatar, emptyState, confirmDialog,
@@ -7,8 +8,10 @@ const state = { start: weekStart(today()), user: '', view: 'week' };
 
 export async function render(root, ctx) {
   const daily = state.view === 'day';
-  const end = daily ? state.start : addDays(state.start, 6);
-  const step = daily ? 1 : 7;
+  const biweekly = state.view === 'biweek';
+  const step = daily ? 1 : biweekly ? 14 : 7;
+  const align = biweekly ? biweeklyStart : weekStart;
+  const end = addDays(state.start, step - 1);
   const [punches, clock] = await Promise.all([
     api(`/punches?start=${state.start}&end=${end}${ctx.isManager && state.user ? '&user=' + state.user : ''}`),
     api('/clock/status'),
@@ -48,10 +51,17 @@ export async function render(root, ctx) {
     if (!hourGroups.has(key)) hourGroups.set(key, { name: key === 'manager' ? 'Managers' : position?.name || 'No position', position, manager: key === 'manager', people: [] });
     hourGroups.get(key).people.push({ uid, hours });
   }
-  const groupRank = g => g.manager ? 0 : g.position?.department === 'FOH' ? 1 : g.position?.department === 'BOH' ? 2 : 3;
+  const groupRank = g => g.position?.department === 'FOH' ? 0 : g.position?.department === 'BOH' ? 1 : g.manager ? 2 : 3;
+  let previousDepartment = null;
+  const weeklyHours = new Map();
+  punches.forEach(p => { const key = p.user_id + ':' + weekStart(p.date); weeklyHours.set(key,(weeklyHours.get(key)||0)+p.hours); });
+  const isOvertime = uid => [...weeklyHours].some(([key,h])=>key.startsWith(uid+':') && h>otLimit);
   const groupedHours = [...hourGroups.values()].sort((a,b) => groupRank(a)-groupRank(b) || a.name.localeCompare(b.name)).map(group => {
+    const department = group.position?.department || (group.manager ? 'Managers' : 'Other staff');
+    const heading = department !== previousDepartment ? `<h2 class="clock-department-heading">${department === 'FOH' ? 'Front of House' : department === 'BOH' ? 'Back of House' : department}</h2>` : '';
+    previousDepartment = department;
     const color = /^#[0-9a-f]{3,8}$/i.test(group.position?.color || '') ? group.position.color : '#7b8190';
-    return `<section class="clock-role-group" style="--role-color:${color}"><h3><span class="tip-role-dot" aria-hidden="true"></span>${esc(group.name)}</h3><ul class="list">${group.people.sort((a,b)=>ctx.userName(a.uid).localeCompare(ctx.userName(b.uid))).map(({uid,hours:h})=>`<li><button class="employee-hours-link" data-history="${uid}" aria-label="View ${esc(ctx.userName(uid))} punch history"><span>${esc(ctx.userName(uid))}${!daily && h > otLimit ? ' <span class="pill pill-bad">Overtime</span>' : ''}</span><span class="num"><strong>${hrs(h)}</strong> hrs${M ? ` <span class="muted">· ${money0(h * (ctx.user(uid)?.hourly_rate || 0))}</span>` : ''}</span></button></li>`).join('')}</ul></section>`;
+    return `${heading}<section class="clock-role-group" style="--role-color:${color}"><h3><span class="tip-role-dot" aria-hidden="true"></span>${esc(group.name)}</h3><ul class="list">${group.people.sort((a,b)=>ctx.userName(a.uid).localeCompare(ctx.userName(b.uid))).map(({uid,hours:h})=>`<li><button class="employee-hours-link" data-history="${uid}" aria-label="View ${esc(ctx.userName(uid))} punch history"><span>${esc(ctx.userName(uid))}${!daily && isOvertime(uid) ? ' <span class="pill pill-bad">Overtime</span>' : ''}</span><span class="num"><strong>${hrs(h)}</strong> hrs${M ? ` <span class="muted">· ${money0(h * (ctx.user(uid)?.hourly_rate || 0))}</span>` : ''}</span></button></li>`).join('')}</ul></section>`;
   }).join('');
 
   root.innerHTML = `
@@ -63,11 +73,11 @@ export async function render(root, ctx) {
       <div class="card">
         <div class="card-head">
           <div class="toolbar">
-            <div class="seg"><button type="button" data-view="day" class="${daily ? 'on' : ''}">Day</button><button type="button" data-view="week" class="${daily ? '' : 'on'}">Week</button></div>
-            <button class="btn btn-sm" data-nav="-${step}" aria-label="Previous ${daily ? 'day' : 'week'}">‹</button>
+            <div class="seg"><button type="button" data-view="day" class="${daily ? 'on' : ''}">Day</button><button type="button" data-view="week" class="${state.view === 'week' ? 'on' : ''}">Week</button><button type="button" data-view="biweek" class="${biweekly ? 'on' : ''}">Biweekly</button></div>
+            <button class="btn btn-sm" data-nav="-${step}" aria-label="Previous ${daily ? 'day' : biweekly ? 'two-week period' : 'week'}">‹</button>
             <strong>${daily ? fmtDateLong(state.start) : fmtRange(state.start, end)}</strong>
-            <button class="btn btn-sm" data-nav="${step}" aria-label="Next ${daily ? 'day' : 'week'}">›</button>
-            <button class="btn btn-sm" data-nav="today">${daily ? 'Today' : 'This week'}</button>
+            <button class="btn btn-sm" data-nav="${step}" aria-label="Next ${daily ? 'day' : biweekly ? 'two-week period' : 'week'}">›</button>
+            <button class="btn btn-sm" data-nav="today">${daily ? 'Today' : biweekly ? 'This biweek' : 'This week'}</button>
             <input type="date" data-date value="${state.start}" aria-label="Choose ${daily ? 'day' : 'a date in the week'}" style="width:auto">
           </div>
           ${M ? `<div class="toolbar">
@@ -104,7 +114,7 @@ export async function render(root, ctx) {
           <ul class="list">${openNow.length ? openNow.map((p) => `<li><div class="person" style="flex:1">${avatar(ctx.userName(p.user_id), ctx.userColor(p.user_id), 'sm')}<div class="meta"><div class="name">${esc(ctx.userName(p.user_id))}</div><div class="role">In at ${fmtClock(p.clock_in)} · ${hrs(p.hours)} hrs so far</div></div></div>${p.break_start ? '<span class="pill pill-info">On break</span>' : ''}</li>`).join('') : `<li>${emptyState('Nobody is clocked in')}</li>`}</ul>
         </div>` : ''}
         <div class="card">
-          <div class="card-head"><h2>${M ? (daily ? 'Hours this day' : 'Hours this week') : (daily ? 'My day' : 'My week')}</h2></div>
+          <div class="card-head"><h2>${M ? (daily ? 'Hours this day' : biweekly ? 'Hours this biweek' : 'Hours this week') : (daily ? 'My day' : biweekly ? 'My biweek' : 'My week')}</h2></div>
           ${groupedHours || emptyState('No hours yet')}
         </div>
       </div>
@@ -115,17 +125,18 @@ export async function render(root, ctx) {
   root.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => {
     const previous = state.view;
     state.view = button.dataset.view;
-    if (state.view === 'week') state.start = weekStart(state.start);
-    else if (previous === 'week' && state.start === weekStart(today())) state.start = today();
+    if (state.view === 'biweek') state.start = biweeklyStart(state.start);
+    else if (state.view === 'week') state.start = weekStart(state.start);
+    else if (previous !== 'day' && state.start === weekStart(today())) state.start = today();
     render(root, ctx);
   }));
   root.querySelector('[data-date]').addEventListener('change', event => {
     if (!event.target.value) return;
-    state.start = daily ? event.target.value : weekStart(event.target.value);
+    state.start = daily ? event.target.value : align(event.target.value);
     render(root, ctx);
   });
   root.querySelectorAll('[data-nav]').forEach((b) => b.addEventListener('click', () => {
-    state.start = b.dataset.nav === 'today' ? (daily ? today() : weekStart(today())) : addDays(state.start, Number(b.dataset.nav));
+    state.start = b.dataset.nav === 'today' ? (daily ? today() : align(today())) : addDays(state.start, Number(b.dataset.nav));
     render(root, ctx);
   }));
   root.querySelectorAll('[data-clock]').forEach((b) => b.addEventListener('click', async () => {
@@ -141,7 +152,7 @@ export async function render(root, ctx) {
   root.querySelector('[data-user]').addEventListener('change', (e) => { state.user = e.target.value; render(root, ctx); });
   root.querySelector('[data-add]').addEventListener('click', () => punchModal(ctx, null, () => render(root, ctx)));
   root.querySelector('[data-approve-all]').addEventListener('click', async () => {
-    if (!(await confirmDialog(`Approve ${pendingIds.length} completed punch(es) for this ${daily ? 'day' : 'week'}?`, { confirmLabel: 'Approve all' }))) return;
+    if (!(await confirmDialog(`Approve ${pendingIds.length} completed punch(es) for this ${daily ? 'day' : biweekly ? 'two-week period' : 'week'}?`, { confirmLabel: 'Approve all' }))) return;
     const r = await api('/punches/approve', { method: 'POST', body: { ids: pendingIds } });
     toast(`Approved ${r.approved} punch(es)`);
     render(root, ctx);
@@ -209,10 +220,10 @@ async function employeeHistory(ctx, userId, selectedDate) {
     const version = ++requestId;
     const end = addDays(start, length - 1);
     panel.innerHTML = `<div class="toolbar" style="margin-bottom:16px"><select data-length aria-label="Period length"><option value="7" ${length === 7 ? 'selected' : ''}>Weekly</option><option value="14" ${length === 14 ? 'selected' : ''}>Biweekly (2 weeks)</option></select><button type="button" class="btn" data-step="-${length}" aria-label="Previous period">‹</button><strong>${fmtRange(start,end)}</strong><button type="button" class="btn" data-step="${length}" aria-label="Next period">›</button><button type="button" class="btn" data-current>This week</button><label class="field" style="margin:0"><span>Week starting</span><input type="date" data-history-date value="${start}"></label></div><div data-history-rows role="status">Loading punches…</div>`;
-    panel.querySelector('[data-length]').onchange = e => { length = Number(e.target.value); draw(); };
+    panel.querySelector('[data-length]').onchange = e => { length = Number(e.target.value); start = length === 14 ? biweeklyStart(start) : weekStart(start); draw(); };
     panel.querySelectorAll('[data-step]').forEach(button => button.onclick = () => { start = addDays(start,Number(button.dataset.step)); draw(); });
-    panel.querySelector('[data-current]').onclick = () => { start = weekStart(today()); draw(); };
-    panel.querySelector('[data-history-date]').onchange = e => { if(e.target.value) {start = weekStart(e.target.value);draw();} };
+    panel.querySelector('[data-current]').onclick = () => { start = length === 14 ? biweeklyStart(today()) : weekStart(today()); draw(); };
+    panel.querySelector('[data-history-date]').onchange = e => { if(e.target.value) {start = length === 14 ? biweeklyStart(e.target.value) : weekStart(e.target.value);draw();} };
     try {
       const rows = await api(`/punches?start=${start}&end=${end}&user=${userId}`);
       if(version !== requestId || !m.dlg.isConnected) return;
