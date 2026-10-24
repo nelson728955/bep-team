@@ -1,5 +1,6 @@
 import { syncScheduledPunches, deletePunch } from './scheduled-punches.js';
 import express from 'express';
+import { mountInventory } from './inventory.js';
 import { mountKioskPublic, mountKioskManager, workId } from './kiosk.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -130,6 +131,7 @@ app.use('/api', (req, res, next) => {
 
 const managerOnly = (req, res, next) => (req.isManager ? next() : res.status(403).json({ error: 'Managers only' }));
 mountKioskManager(app, managerOnly, route);
+mountInventory(app, managerOnly);
 
 app.post('/api/me/password', route((req) => {
   const { current, next: pw } = req.body;

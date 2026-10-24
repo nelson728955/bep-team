@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node --no-warnings server/index.js",
     "dev": "node --no-warnings --watch-path=server server/index.js",
-    "reset": "node --no-warnings server/reset.js"
+    "reset": "node --no-warnings server/reset.js",
+    "test:inventory": "node --no-warnings --test tests/inventory.test.js"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",

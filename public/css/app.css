@@ -651,3 +651,10 @@ dialog.modal footer > div { display: flex; gap: 8px; }
 .tip-period-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: middle; flex-shrink: 0; }
 .tip-period-am { background: #f4bc15; box-shadow: 0 0 0 1px #9a700033; }
 .tip-period-pm { background: #8b42b8; }
+
+/* Inventory uses scrollable tables so counts remain usable on tablets/phones. */
+.inventory-page input[type=search] { font: inherit; min-height: 44px; border: 1px solid var(--border-strong); border-radius: 7px; padding: 0 10px; background: var(--surface); color: var(--text); max-width: 100%; }
+.inventory-page .inventory-table { min-width: 1080px; }
+.inventory-page .inventory-quantity { width: 104px; min-height: 44px; }
+.inventory-category th { background: var(--surface-2); color: var(--text); font-size: 15px; }
+.inventory-page .card, .inventory-page .table-wrap { min-width: 0; max-width: 100%; }

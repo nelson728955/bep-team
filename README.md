@@ -40,6 +40,7 @@ Windows launch helpers are `Start-ShiftHub.ps1` and `Stop-ShiftHub.ps1`. Their f
 | Time Clock | Day or week view, employee filter, add/edit/delete/approve punches, current attendance and hours. Published shifts for today generate clearly labeled, unapproved estimates. Deleting a linked punch prevents automatic regeneration for that employee and shift. |
 | Tablet Time Clock | Dedicated workplace keypad, manager activation, four-digit work IDs, shift selection, explicit Start shift, punch-out confirmation and automatic reset. No break option is offered on the tablet. |
 | Team | Managers first, then FOH and BOH; positions, pay rates, access and active status. Managers can manage employee availability and work IDs. New cook positions default to $20/hour in Add Employee; existing pay rates are preserved. |
+| Inventory | Categories, storage locations, stock counts, par/emergency/event targets, suppliers, whole-pack order suggestions, manager approval, delivery receiving, stock history and CSV exports. Employees can record counts; managers manage items, suppliers and orders. |
 | Requests | Time-off requests, shift pickups/swaps and weekly availability. |
 | Tasks / Engage | Checklists, announcements and team chat. |
 | Tips | Morning/night or whole-day pools, role-point distribution, or exact manual amounts for FOH workers with recorded hours. Preview before saving; employee totals support weekly viewing. Date worked defaults to today. |
@@ -59,6 +60,19 @@ Historical tip pools using hours or equal splitting remain readable, but these m
 The default ID is the last four numeric digits of the employee's phone number. Missing phone numbers and duplicate IDs require a manager-assigned unique ID under **Team → employee → Work ID**. This code is for the paired punch tablet, not an account password.
 
 Pairing lasts up to one year and is stored in a browser cookie. Clearing cookies or changing browsers requires reactivation. Internet access is required; offline punching is not supported. The Full screen button depends on browser support. Use the tablet's device settings to keep the screen awake and restrict access to the workplace browser.
+
+## Start using Inventory
+
+1. Open **Inventory → Suppliers** and add supplier contacts, lead times and delivery notes.
+2. Use **Add item** to set the category, storage location and base stock unit (kg, L, each, etc.). Enter units per supplier pack and cost per pack, plus par, emergency stock and event extras.
+3. Staff enter physical stock counts in **Stock & counts** and save. Blank fields are left unchanged; entering zero records zero stock. Conflicting changes from another tablet require a refresh rather than silently overwriting stock.
+4. Review the suggested pack quantities, adjust them if necessary, then choose **Create draft from entered packs**. Suggestions subtract on-hand stock and outstanding approved/ordered quantities from par plus extras and round up to whole packs. Drafts do not count as incoming stock.
+5. A manager reviews and approves the draft under **Orders**, exports a supplier CSV if useful, places the order with the supplier separately, and marks it as ordered.
+6. Record deliveries using **Receive delivery**, in the base stock unit. Partial deliveries update stock and leave the remainder outstanding. Receipt retries do not add the same delivery twice. Cancelling an order releases the outstanding quantities and preserves stock already received.
+
+Inventory starts empty on an existing production database. New tables are created on startup; attendance, tips and payroll records are not migrated or altered. Archived items retain their history. Item units cannot be changed after stock/history exists; create a new item when changing units. Emergency and event extras stay in the target until a manager edits them. Prices are estimates before tax and delivery; stock value uses the current pack price, not formal accounting valuation. No orders are automatically transmitted or purchased.
+
+Run the isolated inventory regression check with `npm run test:inventory`. It uses a temporary in-memory database through the cloud-compatible driver and does not touch restaurant records.
 
 ## Appearance and devices
 
@@ -109,6 +123,7 @@ server/
   cloud-db-worker.js    libSQL queries and transactions
   scheduled-punches.js  Scheduled estimates and deletion suppression
   kiosk.js             Tablet pairing, work IDs and punch endpoints
+  inventory.js         Inventory tables, order workflow and stock history
   tips.js              Role-point and manual tip allocation
   payroll.js           Payroll calculations and saved runs
   rates-qc.js          Quebec/federal payroll rate data

@@ -11,9 +11,11 @@ import * as tips from './pages/tips.js';
 import * as payroll from './pages/payroll.js';
 import * as reports from './pages/reports.js';
 import * as team from './pages/team.js';
+import * as inventory from './pages/inventory.js';
 import * as settings from './pages/settings.js';
 
 const ICONS = {
+  inventory: '<path d="M3 7l9-4 9 4v13H3zM3 7l9 4 9-4M12 11v9"/>',
   dashboard: '<path d="M3 13a9 9 0 1 1 18 0"/><path d="M12 13l4-4"/><path d="M5 19h14"/>',
   schedule: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   timeclock: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',
@@ -39,6 +41,7 @@ const ROUTES = {
   tasks: { label: 'Tasks', page: tasks },
   engage: { label: 'Engage', page: engage },
   tips: { label: 'Tips', page: tips },
+  inventory: { label: 'Inventory', page: inventory },
   payroll: { label: 'Payroll', page: payroll, manager: true },
   pay: { label: 'My Pay', page: payroll, employee: true },
   reports: { label: 'Reports', page: reports, manager: true },
