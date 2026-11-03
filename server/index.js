@@ -1,5 +1,6 @@
 import { syncScheduledPunches, deletePunch } from './scheduled-punches.js';
 import express from 'express';
+import { closeForgottenPunches } from './midnight-punches.js';
 import { mountInventory } from './inventory.js';
 import { mountKioskPublic, mountKioskManager, workId } from './kiosk.js';
 import path from 'node:path';
@@ -26,7 +27,9 @@ if (!db.prepare('SELECT 1 FROM users LIMIT 1').get()) {
   } else seed();
 }
 
+closeForgottenPunches();
 syncScheduledPunches();
+setInterval(() => { try { closeForgottenPunches(); } catch(error) { console.error('Midnight punch-out failed:',error.message); } },30000).unref();
 setInterval(() => { try { syncScheduledPunches(); } catch (error) { console.error('Scheduled attendance sync failed:', error.message); } }, 60000).unref();
 const appUrl = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL;
 const appOrigin = appUrl ? new URL(appUrl).origin : null;
@@ -116,6 +119,9 @@ app.post('/api/logout', route((req, res) => {
   return { ok: true };
 }));
 
+app.use('/api', (req,res,next) => {
+  try { closeForgottenPunches(); next(); } catch(error) { next(error); }
+});
 mountKioskPublic(app);
 app.use('/api', (req, res, next) => {
   const { sid } = parseCookies(req.headers.cookie);
